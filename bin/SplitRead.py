@@ -9,12 +9,11 @@ class FQStanza(object):
 	""" Encapsulates the four line chunks of a fastq file. """
 	
 	@classmethod
-	def parse_input(cls, line_str, delim="\n"):
+	def parse(cls, line_str, delim="\n"):
 		return FQStanza(*line_str.rstrip().split(delim))
 		
 	def __init__(self, main_header, seq, score_header, score):	
 		(self.main_header, self.seq, self.score_header, self.score) = (main_header, seq, score_header, score)
-
 
 	def split(self, split_position):
 		right_size = len(self.seq)-split_position
@@ -33,6 +32,7 @@ class FQStanza(object):
 	def __repr__(self):
 		return "{0}\n{1}\n{2}\n{3}".format(self.main_header, self.seq, self.score_header, self.score)
 
+
 def build_splits(in_stanza, split_margin):
 	stanzas = []
 	for split_position in range(split_margin, (len(in_stanza.seq)-split_margin)+1):
@@ -47,21 +47,26 @@ def write_stanzas(in_stanzas, writer, split_margin):
 			writer.write("\n")
 
 
-def stanza_generator(reader, stanza_delimiter)
+def stanza_generator(reader, stanza_delimiter):
+	#skip header
 	for line in reader:
 		stanza_str = line
 		if stanza_str.startswith(stanza_delimiter):
 			break
-
+			
 	for line in reader:
 		if line.startswith(stanza_delimiter):
-			yield stanza_str
+			yield FQStanza.parse(stanza_str)
 			stanza_str = line
-		stanza_str += line
+		else:
+			stanza_str += line
+	yield FQStanza.parse(stanza_str)
 
-# def process_file():
-# 	generator = stanza_generator(reader)
-# 	write_stanzas(generator, kjdhsfk)
+#def process_file():
+#reader = open(file)
+#generator = stanza_generator(reader)
+#writer = open(file)
+#write_stanzas(generator, kjdhsfk)
 
 if __name__ == "__main__":
 

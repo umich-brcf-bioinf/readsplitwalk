@@ -13,9 +13,9 @@ from SplitRead import FQStanza, build_splits, write_stanzas, stanza_generator
 
 class FQStanzaTest(unittest.TestCase):
 	
-	def test_parse_input(self):
+	def test_parse(self):
 		stanza_string = "@HWI-EAS159:6:1:6:610#0/1\nGCACGGTTCTGTAGTCTNCAGAAGTATCNGATNNG\n+HWI-EAS159:6:1:6:610#0/1\naaa^W\]a]^Z^]P[_[DZWR[\\\BBBBBBBBBB\n"
-		actual_stanza = FQStanza.parse_input(stanza_string)
+		actual_stanza = FQStanza.parse(stanza_string)
 		
 		self.assertEqual("@HWI-EAS159:6:1:6:610#0/1", actual_stanza.main_header)
 		self.assertEqual("GCACGGTTCTGTAGTCTNCAGAAGTATCNGATNNG", actual_stanza.seq)
@@ -86,10 +86,19 @@ class SplitReadTest(unittest.TestCase):
 		self.assertEquals(4, len(stanzaA_headers))
 
 	def test_stanza_generator(self):
-		reader = ["file_header1","file_header2","@h1","ABC","h1","123","@h2","DEF","+h2","456"]
-		stanza_length = 4
-		
-		stanzas = [thing for thing in stanza_generator(reader, "@", stanza_length)]
+		reader = MockReader(\
+"""file_header1
+file_header2
+@h1
+ABC
+h1
+123
+@h2
+DEF
++h2
+456""")
+
+		stanzas = [stanza for stanza in stanza_generator(reader, "@")]
 
 		self.assertEquals(2, len(stanzas))
 		self.assertEquals("@h1", stanzas[0].main_header)
@@ -113,7 +122,20 @@ class MockWriter():
 
 	def close(self):
 		self.wasClosed = True
-	
+
+class MockReader():
+		def __init__(self, content):
+				lines = [line + "\n" for line in content.split("\n") if line != ""]
+				self._iter = lines.__iter__()
+				self.wasClosed = False
+		
+		def __iter__(self):
+				return self._iter
+		
+		def close(self):
+				self.wasClosed=True
+
+
 if __name__ == "__main__":
 	unittest.main() 
 	print "done."
