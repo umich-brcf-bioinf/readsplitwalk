@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 
+import sys ; sys.path.insert(0, "../bin")
 import unittest
-from IdentifyPairs5 import SplitReadBuilder, SplitRead, build_read_groups, write_pairs, build_pairs_from_groups
+from IdentifyPairs import SplitReadBuilder, SplitRead, build_read_groups, write_pairs, build_pairs_from_groups
 
 class SplitReadBuilderTest(unittest.TestCase):
 
@@ -18,32 +19,29 @@ class SplitReadBuilderTest(unittest.TestCase):
 		self.assertEqual(100, split_read._position)
 		self.assertEqual(5, split_read._matches)
 
-	def test_key_side_consistendWithBuild(self):
+	def test_key_consistentWithBuild(self):
 		read_len = 30
                 builder = SplitReadBuilder(read_len, "-")
 		line = "name-L-10-strand-chr-100-seq-quality-5"
                 split_read = builder.build(line)
-		key_side = builder.key_side(line)
+		key = builder.key(line)
 
-		self.assertEqual(split_read.key, key_side[0])
-		self.assertEqual(split_read.side, key_side[1])
+		self.assertEqual(split_read.key, key)
+		self.assertEqual(split_read.side, key)
 
-	def test_key_side_leftKeyPassesThrough(self):
+	def test_key_leftKeyPassesThrough(self):
 		read_len = 30
                 builder = SplitReadBuilder(read_len, "-")
-                actualKey = builder.key_side("name-L-10-strand-chr-100-seq-quality-5")[0]
+                actualKey = builder.key("name-L-10-strand-chr-100-seq-quality-5")
 
                 self.assertEqual("name|L|10|strand|chr", actualKey)
 
-
-	def test_key_side_rightKeySwitchesSideAndSplitLength(self):
+	def test_key_rightKeySwitchesSideAndSplitLength(self):
         	read_len = 30
                 builder = SplitReadBuilder(read_len, "-")
-                actualKey = builder.key_side("name-R-20-strand-chr-100-seq-quality-5")[0]
+                actualKey = builder.key("name-R-20-strand-chr-100-seq-quality-5")
 
                 self.assertEqual("name|L|10|strand|chr", actualKey)
-
-	
 
 	def test_build_raisesOnMalformedInput(self):
 		builder = SplitReadBuilder(30,"|")

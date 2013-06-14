@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import sys ; sys.path.insert(0, "../bin")
 import unittest
 import tempfile
 import os
