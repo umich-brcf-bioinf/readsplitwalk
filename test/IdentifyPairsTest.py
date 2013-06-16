@@ -2,7 +2,7 @@
 
 import sys ; sys.path.insert(0, "../bin")
 import unittest
-from IdentifyPairs import SplitReadBuilder, SplitRead, build_read_groups, write_pairs, build_pairs_from_groups
+from IdentifyPairs import SplitReadBuilder, SplitRead, _build_read_groups, _write_pairs, _build_pairs_from_groups, _identify_common_group_keys
 
 class SplitReadBuilderTest(unittest.TestCase):
 
@@ -19,29 +19,20 @@ class SplitReadBuilderTest(unittest.TestCase):
 		self.assertEqual(100, split_read._position)
 		self.assertEqual(5, split_read._matches)
 
-	def test_key_consistentWithBuild(self):
+	def test_key_side_leftKeyPassesThrough(self):
 		read_len = 30
                 builder = SplitReadBuilder(read_len, "-")
-		line = "name-L-10-strand-chr-100-seq-quality-5"
-                split_read = builder.build(line)
-		key = builder.key(line)
-
-		self.assertEqual(split_read.key, key)
-		self.assertEqual(split_read.side, key)
-
-	def test_key_leftKeyPassesThrough(self):
-		read_len = 30
-                builder = SplitReadBuilder(read_len, "-")
-                actualKey = builder.key("name-L-10-strand-chr-100-seq-quality-5")
-
+                (actualKey, actualSide) = builder.key_side("name-L-10-strand-chr-100-seq-quality-5-foo-bar\n")
                 self.assertEqual("name|L|10|strand|chr", actualKey)
+		self.assertEqual("L", actualSide)
 
-	def test_key_rightKeySwitchesSideAndSplitLength(self):
+	def test_key_side_rightKeySwitchesSideAndSplitLength(self):
         	read_len = 30
                 builder = SplitReadBuilder(read_len, "-")
-                actualKey = builder.key("name-R-20-strand-chr-100-seq-quality-5")
+                (actualKey, actualSide) = builder.key_side("name-R-20-strand-chr-100-seq-quality-5-foo-bar\n")
 
                 self.assertEqual("name|L|10|strand|chr", actualKey)
+		self.assertEqual("R", actualSide)
 
 	def test_build_raisesOnMalformedInput(self):
 		builder = SplitReadBuilder(30,"|")
@@ -71,14 +62,46 @@ class SplitReadTest(unittest.TestCase):
 	
 
 class IdentifyPairsTest(unittest.TestCase):
+
+
+	def test_identify_common_group_keys(self):
+		read1 = MockSplitRead("key1", "L")
+		read2 = MockSplitRead("key1", "R")
+		builder = MockSplitReadBuilder({'read1': read1, 'read2' : read2})
+		reader = ["read1", "read2"]
+
+		group_keys = _identify_common_group_keys(builder, reader, MockLogger())
 	
+		self.assertEqual(1, len(group_keys))
+		self.assertEqual(True, "key1" in group_keys)
+
+        def test_identify_common_group_keys_noCommonKeys(self):
+                read1 = MockSplitRead("key1", "L")
+                read2 = MockSplitRead("key2", "R")
+                builder = MockSplitReadBuilder({'read1': read1, 'read2' : read2})
+                reader = ["read1", "read2"]
+
+                group_keys = _identify_common_group_keys(builder, reader, MockLogger())
+
+                self.assertEqual(0, len(group_keys))
+
+        def test_identify_common_group_keys_keyOnlyOnOneSide(self):
+                read1 = MockSplitRead("key1", "L")
+                read2 = MockSplitRead("key1", "L")
+                builder = MockSplitReadBuilder({'read1': read1, 'read2' : read2})
+                reader = ["read1", "read2"]
+                
+                group_keys = _identify_common_group_keys(builder, reader, MockLogger())
+
+                self.assertEqual(0, len(group_keys))
+
 	def test_build_read_groups_singleRead(self):
 		read1 = MockSplitRead("key1","L")
 		builder = MockSplitReadBuilder({'read1' : read1 })
 		reader = ["read1"]
 		common_keys = set(["key1"])
 		
-		pairs = build_read_groups(common_keys, builder, reader, MockLogger())
+		pairs = _build_read_groups(common_keys, builder, reader, MockLogger())
 		
 		self.assertEqual(1, len(pairs))
 		self.assertEqual(([read1],[]), pairs["key1"])
@@ -90,11 +113,24 @@ class IdentifyPairsTest(unittest.TestCase):
 		reader = ["read1", "read2"]
 		common_keys = set(["key1","key2"])	
 	
-		pairs = build_read_groups(common_keys, split_read_builder, reader, MockLogger())
+		pairs = _build_read_groups(common_keys, split_read_builder, reader, MockLogger())
 		
 		self.assertEqual(2, len(pairs))
 		self.assertEqual(([read1],[]), pairs["key1"])
 		self.assertEqual(([],[read2]), pairs["key2"])
+
+        def test_build_read_groups_filtersOnCommonKey(self):
+                read1 = MockSplitRead("key1", "L")
+                read2 = MockSplitRead("key2", "R")
+                split_read_builder = MockSplitReadBuilder({'read1':read1, 'read2':read2})
+                reader = ["read1", "read2"]
+                common_keys = set(["key1"])
+
+                pairs = _build_read_groups(common_keys, split_read_builder, reader, MockLogger())
+
+                self.assertEqual(1, len(pairs))
+                self.assertEqual(([read1],[]), pairs["key1"])
+
 
 	def test_build_read_groups_twoLeftReads(self):
 		read1 = MockSplitRead("key1", "L")
@@ -103,7 +139,7 @@ class IdentifyPairsTest(unittest.TestCase):
 		reader = ["read1", "read2"]
 		common_keys = set(["key1"])	
 	
-		pairs = build_read_groups(common_keys, split_read_builder, reader, MockLogger())
+		pairs = _build_read_groups(common_keys, split_read_builder, reader, MockLogger())
 		
 		self.assertEqual(1, len(pairs))
 		self.assertEqual(([read1, read2],[]), pairs["key1"])
@@ -117,7 +153,7 @@ class IdentifyPairsTest(unittest.TestCase):
 		reader = ["1","2","3","4"]
 		common_keys = set(["key1"])	
 
-		pairs = build_read_groups(common_keys, split_read_builder, reader, MockLogger())
+		pairs = _build_read_groups(common_keys, split_read_builder, reader, MockLogger())
 		
 		self.assertEqual(1, len(pairs))
 		self.assertEqual(([read1, read2],[read3, read4]), pairs["key1"])
@@ -128,7 +164,7 @@ class IdentifyPairsTest(unittest.TestCase):
 		rightA = MockSplitRead("key1", "L", "rightA", "rightFormattedRead")		
 		pairs=[(leftA, rightA, 5)]
 		
-		write_pairs(pairs, writer, MockLogger(), "|")	
+		_write_pairs(pairs, writer, MockLogger(), "|")	
 		
 		self.assertEqual(1, len(writer.lines()))
 		self.assertEqual(["leftFormattedRead|rightFormattedRead|5"], writer.lines())
@@ -139,7 +175,7 @@ class IdentifyPairsTest(unittest.TestCase):
 		rightA = MockSplitRead("key1", "L", "rightA", "rightFormattedRead", 42)		
 		groups = {'1':([leftA],[rightA])}
 		
-		actual = build_pairs_from_groups(groups, MockLogger())	
+		actual = _build_pairs_from_groups(groups, MockLogger())	
 		
 		expected=[(leftA, rightA, 5)]
 		self.assertEqual(1, len(actual))
@@ -154,7 +190,7 @@ class IdentifyPairsTest(unittest.TestCase):
 
 		groups = {'1':([leftA, leftB], [rightA, rightB])}
 		
-		actual = build_pairs_from_groups(groups, MockLogger())	
+		actual = _build_pairs_from_groups(groups, MockLogger())	
 	
 		actual = sorted(actual)	
 		expected=sorted([(leftA, rightA, 5), (leftA, rightB, 5), (leftB, rightA, 10), (leftB, rightB, 10)])
@@ -217,7 +253,7 @@ class MockSplitReadBuilder():
 
 
 def initParams(updates):
-	params = {'name':"name", 'side':"L", 'split_len':10, 'strand':"strand", 'chr':"chr", 'position':100, 'matches':5, 'key':"42"} 
+	params = {'name':"name", 'side':"L", 'split_len':10, 'strand':"strand", 'chr':"chr", 'position':100, 'matches':5 } 
 	params.update(updates);
 	return params
 
