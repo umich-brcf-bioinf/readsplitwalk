@@ -62,33 +62,31 @@ def stanza_generator(reader, stanza_delimiter):
 			stanza_str += line
 	yield FQStanza.parse(stanza_str)
 
-#def process_file():
-#reader = open(file)
-#generator = stanza_generator(reader)
-#writer = open(file)
-#write_stanzas(generator, kjdhsfk)
+
+
+def main(infilen, outfilen, split_margin):
+    infile = File(infilen, "r")
+    outfile = File(outfilen, "w")
+    stanza_gen = stanza_generator(infile, "@")
+    write_splits(stanza_gen, outfile, split_margin)        
+	infile.close()
+    outfile.close()
+
+
 
 if __name__ == "__main__":
 
 	if (len(sys.argv)  < 4 or len(sys.argv) > 5):
-		print "usage: {0} [infile] [output path] [partition column zero-based index] [delimiter='\\t' (regex delimiter)]".format(os.path.basename(sys.argv[0]))
+		print "usage: {0} [infile] [outfile] [split_margin]".format(os.path.basename(sys.argv[0]))
 		sys.exit() 
 
 
-	infile = sys.argv[1]
-	if not os.path.isfile(infile):
-		raise ValueError("infile [{0}] does not exist".format(infile))
+	infilen = sys.argv[1]
+    outfilen = sys.argv[2]
+    split_margin = int(sys.argv[3])
+    
+	if not os.path.isfile(infilen):
+		raise ValueError("infile [{0}] does not exist".format(infilen))
 
-	output_path = os.path.join(sys.argv[2],"") 
-	if not os.path.isdir(output_path):
-		raise ValueError("Output path [{0}] does not exist".format(output_path))
-
-	col_index = int(sys.argv[3])
-
-	if len(sys.argv) == 5:
-		delim = sys.argv[4]
-	else:
-		 delim = "\t" 
-	filesystem = FileSystem()
-	splitfile(filesystem, infile, output_path, col_index, delim)
+    main(infilen, outfilen, split_margin)
 	print "done."
