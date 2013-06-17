@@ -2,13 +2,13 @@
 
 import sys ; sys.path.insert(0, "../bin")
 import unittest
-from IdentifyPairs import SplitReadBuilder, SplitRead, _build_read_groups, _write_pairs, _build_pairs_from_groups, _identify_common_group_keys
+from IdentifyPairs import BowtieSplitReadBuilder, LegacySplitReadBuilder, SplitRead, _build_read_groups, _write_pairs, _build_pairs_from_groups, _identify_common_group_keys
 
-class SplitReadBuilderTest(unittest.TestCase):
+class LegacySplitReadBuilderTest(unittest.TestCase):
 
 	def test_build(self):
 		read_len = 30		
-		builder = SplitReadBuilder(read_len, "|")
+		builder = LegacySplitReadBuilder(read_len, "|")
 		split_read = builder.build("name|L|10|strand|chr|100|seq|quality|5")
 	
 		self.assertEqual("name", split_read.name)
@@ -21,21 +21,57 @@ class SplitReadBuilderTest(unittest.TestCase):
 
 	def test_key_side_leftKeyPassesThrough(self):
 		read_len = 30
-                builder = SplitReadBuilder(read_len, "-")
+                builder = LegacySplitReadBuilder(read_len, "-")
                 (actualKey, actualSide) = builder.key_side("name-L-10-strand-chr-100-seq-quality-5-foo-bar\n")
                 self.assertEqual("name|L|10|strand|chr", actualKey)
 		self.assertEqual("L", actualSide)
 
 	def test_key_side_rightKeySwitchesSideAndSplitLength(self):
         	read_len = 30
-                builder = SplitReadBuilder(read_len, "-")
+                builder = LegacySplitReadBuilder(read_len, "-")
                 (actualKey, actualSide) = builder.key_side("name-R-20-strand-chr-100-seq-quality-5-foo-bar\n")
 
                 self.assertEqual("name|L|10|strand|chr", actualKey)
 		self.assertEqual("R", actualSide)
 
 	def test_build_raisesOnMalformedInput(self):
-		builder = SplitReadBuilder(30,"|")
+		builder = LegacySplitReadBuilder(30,"|")
+		self.assertRaises(Exception, builder.build, "name|L|10")
+		
+
+
+class BowtieSplitReadBuilderTest(unittest.TestCase):
+
+	def test_build(self):
+		read_len = 30		
+		builder = BowtieSplitReadBuilder(read_len, "|")
+		split_read = builder.build("hw1-name-L-10|strand|chr|100|seq|quality|5")
+	
+		self.assertEqual("hw1-name", split_read.name)
+		self.assertEqual("L", split_read.side)
+		self.assertEqual(10, split_read._split_len)
+		self.assertEqual("strand", split_read._strand)
+		self.assertEqual("chr", split_read._chr)
+		self.assertEqual(100, split_read._position)
+		self.assertEqual(5, split_read._matches)
+
+	def test_key_side_leftKeyPassesThrough(self):
+		read_len = 30
+                builder = BowtieSplitReadBuilder(read_len, "|")
+                (actualKey, actualSide) = builder.key_side("name-L-10|strand|chr|100|seq|quality|5|foo|bar\n")
+                self.assertEqual("name|L|10|strand|chr", actualKey)
+		self.assertEqual("L", actualSide)
+
+	def test_key_side_rightKeySwitchesSideAndSplitLength(self):
+        	read_len = 30
+                builder = BowtieSplitReadBuilder(read_len, "-")
+                (actualKey, actualSide) = builder.key_side("name-R-20|strand|chr|100|seq|quality|5|foo|bar\n")
+
+                self.assertEqual("name|L|10|strand|chr", actualKey)
+		self.assertEqual("R", actualSide)
+
+	def test_build_raisesOnMalformedInput(self):
+		builder = BowtieSplitReadBuilder(30,"|")
 		self.assertRaises(Exception, builder.build, "name|L|10")
 		
 		

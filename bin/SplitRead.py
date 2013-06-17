@@ -65,12 +65,12 @@ def stanza_generator(reader, stanza_delimiter):
 
 
 def main(infilen, outfilen, split_margin):
-    infile = File(infilen, "r")
-    outfile = File(outfilen, "w")
-    stanza_gen = stanza_generator(infile, "@")
-    write_splits(stanza_gen, outfile, split_margin)        
+	infile = open(infilen, "r")
+	outfile = open(outfilen, "w")
+	stanza_gen = stanza_generator(infile, "@")
+	write_stanzas(stanza_gen, outfile, split_margin)        
 	infile.close()
-    outfile.close()
+	outfile.close()
 
 
 
@@ -82,11 +82,11 @@ if __name__ == "__main__":
 
 
 	infilen = sys.argv[1]
-    outfilen = sys.argv[2]
-    split_margin = int(sys.argv[3])
+	outfilen = sys.argv[2]
+	split_margin = int(sys.argv[3])
     
 	if not os.path.isfile(infilen):
-		raise ValueError("infile [{0}] does not exist".format(infilen))
+	    raise ValueError("infile [{0}] does not exist".format(infilen))
 
-    main(infilen, outfilen, split_margin)
+	main(infilen, outfilen, split_margin)
 	print "done."
