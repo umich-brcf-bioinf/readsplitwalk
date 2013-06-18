@@ -31,7 +31,7 @@ import datetime
 import gc
 import os
 import resource
-import sys
+import sys, re
 
 
 class StdErrLogger():
@@ -101,51 +101,29 @@ class BowtieSplitReadBuilder():
 	def __init__(self, read_len, delimiter = "\t"):
 		self._read_len = read_len
 		self._delimiter = delimiter
-		self.name_re = re.compile(r"(.+)-([LR])-([\d]+)$")
+		self._name_re = re.compile(r"(.+)-([LR])-([\d]+)$")
 		
 	def build(self, line):
 		try:
 			(name, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter)
-			(name_ = split(name, "-") 
-			return SplitRead(name, side, int(split_len), strand, chr, int(position), int(matches))
+			m = self._name_re.match(name)
+			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
+			return SplitRead(subname, side, int(split_len), strand, chr, int(position), int(matches))
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
 		
-	def key_side(self, line, delimiter = "\t"):
+	def key_side(self, line):
 		"""Parse a key and side form a line.  Note that "right side" reads return complementary "left side" keys."""
-		(name, side, split_len, strand, chr) = line.split(self._delimiter)[:5]
+		(name, strand, chr) = line.split(self._delimiter)[:3]
+		m = self._name_re.match(name)
+		(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
 		if side == "L":
-			return ("{0}|{1}|{2}|{3}|{4}".format(name, side, split_len, strand, chr), side)
+			return ("{0}|{1}|{2}|{3}|{4}".format(subname, side, split_len, strand, chr), side)
 		else:  
 			new_side = "L"
 			new_split_len = self._read_len - int(split_len)
-			return ("{0}|{1}|{2}|{3}|{4}".format(name, new_side, new_split_len, strand, chr), side)
+			return ("{0}|{1}|{2}|{3}|{4}".format(subname, new_side, new_split_len, strand, chr), side)
 
-
-
-class BowtieSplitReadBuilder():
-	"""Interprets a key, side, or SplitRead from a line of text"""
-	def __init__(self, read_len, delimiter = "\t"):
-		self._read_len = read_len
-		self._delimiter = delimiter
-	
-	def build(self, line):
-		try:
-			(name, side, split_len, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter) 
-			return SplitRead(name, side, int(split_len), strand, chr, int(position), int(matches))
-		except ValueError as e:
-			raise SplitReadParseError(line, e)
-		
-	def key_side(self, line, delimiter = "\t"):
-		"""Parse a key and side form a line.  Note that "right side" reads return complementary "left side" keys."""
-		(name, side, split_len, strand, chr) = line.split(self._delimiter)[:5]
-		if side == "L":
-			return ("{0}|{1}|{2}|{3}|{4}".format(name, side, split_len, strand, chr), side)
-		else:  
-			new_side = "L"
-			new_split_len = self._read_len - int(split_len)
-			return ("{0}|{1}|{2}|{3}|{4}".format(name, new_side, new_split_len, strand, chr), side)
-			
 
 
 class SplitReadParseError(Exception):

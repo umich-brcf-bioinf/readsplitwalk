@@ -57,17 +57,16 @@ class BowtieSplitReadBuilderTest(unittest.TestCase):
 
 	def test_key_side_leftKeyPassesThrough(self):
 		read_len = 30
-                builder = BowtieSplitReadBuilder(read_len, "|")
-                (actualKey, actualSide) = builder.key_side("name-L-10|strand|chr|100|seq|quality|5|foo|bar\n")
-                self.assertEqual("name|L|10|strand|chr", actualKey)
+		builder = BowtieSplitReadBuilder(read_len, "|")
+		(actualKey, actualSide) = builder.key_side("hw1-name-L-10|strand|chr|100|seq|quality|5|foo|bar\n")
+		self.assertEqual("hw1-name|L|10|strand|chr", actualKey)
 		self.assertEqual("L", actualSide)
 
 	def test_key_side_rightKeySwitchesSideAndSplitLength(self):
-        	read_len = 30
-                builder = BowtieSplitReadBuilder(read_len, "-")
-                (actualKey, actualSide) = builder.key_side("name-R-20|strand|chr|100|seq|quality|5|foo|bar\n")
-
-                self.assertEqual("name|L|10|strand|chr", actualKey)
+		read_len = 30
+		builder = BowtieSplitReadBuilder(read_len, "|")
+		(actualKey, actualSide) = builder.key_side("hw1-name-R-20|strand|chr|100|seq|quality|5|foo|bar\n")
+		self.assertEqual("hw1-name|L|10|strand|chr", actualKey)
 		self.assertEqual("R", actualSide)
 
 	def test_build_raisesOnMalformedInput(self):
