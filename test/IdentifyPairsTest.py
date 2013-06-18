@@ -13,26 +13,11 @@ class LegacySplitReadBuilderTest(unittest.TestCase):
 	
 		self.assertEqual("name", split_read.name)
 		self.assertEqual("L", split_read.side)
-		self.assertEqual(10, split_read._split_len)
+		self.assertEqual(10, split_read.split_len)
 		self.assertEqual("strand", split_read._strand)
 		self.assertEqual("chr", split_read._chr)
 		self.assertEqual(100, split_read._position)
 		self.assertEqual(5, split_read._matches)
-
-	def test_key_side_leftKeyPassesThrough(self):
-		read_len = 30
-                builder = LegacySplitReadBuilder(read_len, "-")
-                (actualKey, actualSide) = builder.key_side("name-L-10-strand-chr-100-seq-quality-5-foo-bar\n")
-                self.assertEqual("name|L|10|strand|chr", actualKey)
-		self.assertEqual("L", actualSide)
-
-	def test_key_side_rightKeySwitchesSideAndSplitLength(self):
-        	read_len = 30
-                builder = LegacySplitReadBuilder(read_len, "-")
-                (actualKey, actualSide) = builder.key_side("name-R-20-strand-chr-100-seq-quality-5-foo-bar\n")
-
-                self.assertEqual("name|L|10|strand|chr", actualKey)
-		self.assertEqual("R", actualSide)
 
 	def test_build_raisesOnMalformedInput(self):
 		builder = LegacySplitReadBuilder(30,"|")
@@ -49,25 +34,11 @@ class BowtieSplitReadBuilderTest(unittest.TestCase):
 	
 		self.assertEqual("hw1-name", split_read.name)
 		self.assertEqual("L", split_read.side)
-		self.assertEqual(10, split_read._split_len)
+		self.assertEqual(10, split_read.split_len)
 		self.assertEqual("strand", split_read._strand)
 		self.assertEqual("chr", split_read._chr)
 		self.assertEqual(100, split_read._position)
 		self.assertEqual(5, split_read._matches)
-
-	def test_key_side_leftKeyPassesThrough(self):
-		read_len = 30
-		builder = BowtieSplitReadBuilder(read_len, "|")
-		(actualKey, actualSide) = builder.key_side("hw1-name-L-10|strand|chr|100|seq|quality|5|foo|bar\n")
-		self.assertEqual("hw1-name|L|10|strand|chr", actualKey)
-		self.assertEqual("L", actualSide)
-
-	def test_key_side_rightKeySwitchesSideAndSplitLength(self):
-		read_len = 30
-		builder = BowtieSplitReadBuilder(read_len, "|")
-		(actualKey, actualSide) = builder.key_side("hw1-name-R-20|strand|chr|100|seq|quality|5|foo|bar\n")
-		self.assertEqual("hw1-name|L|10|strand|chr", actualKey)
-		self.assertEqual("R", actualSide)
 
 	def test_build_raisesOnMalformedInput(self):
 		builder = BowtieSplitReadBuilder(30,"|")
@@ -94,41 +65,51 @@ class SplitReadTest(unittest.TestCase):
 		srR = SplitRead(**initParams({'position':100}))
 		self.assertEqual(75, srL.distance(srR))
 		self.assertEqual(75, srR.distance(srL))
+		
+	def test_key_leftKeyPassesThrough(self):
+		read_len = 30
+		builder = LegacySplitReadBuilder(read_len, "-")
+		split_read = builder.build("name-L-10-strand-chr-100-seq-quality-5-foo-bar\n")
+		self.assertEqual("name|L|10|strand|chr", split_read.key())
+
+	def test_key_rightKeySwitchesSideAndSplitLength(self):
+		read_len = 30
+		builder = LegacySplitReadBuilder(read_len, "-")
+		split_read = builder.build("name-R-20-strand-chr-100-seq-quality-5-foo-bar\n")
+		self.assertEqual("name|L|10|strand|chr", split_read.key())
 	
 
 class IdentifyPairsTest(unittest.TestCase):
 
-
 	def test_identify_common_group_keys(self):
 		read1 = MockSplitRead("key1", "L")
 		read2 = MockSplitRead("key1", "R")
+		read_len = read1.split_len + read2.split_len
 		builder = MockSplitReadBuilder({'read1': read1, 'read2' : read2})
 		reader = ["read1", "read2"]
 
-		group_keys = _identify_common_group_keys(builder, reader, MockLogger())
+		group_keys = _identify_common_group_keys(builder, reader, MockLogger(), read_len)
 	
 		self.assertEqual(1, len(group_keys))
 		self.assertEqual(True, "key1" in group_keys)
 
-        def test_identify_common_group_keys_noCommonKeys(self):
-                read1 = MockSplitRead("key1", "L")
-                read2 = MockSplitRead("key2", "R")
-                builder = MockSplitReadBuilder({'read1': read1, 'read2' : read2})
-                reader = ["read1", "read2"]
+	def test_identify_common_group_keys_noCommonKeys(self):
+		read1 = MockSplitRead("key1", "L")
+		read2 = MockSplitRead("key2", "R")
+		read_len = read1.split_len + read2.split_len
+		builder = MockSplitReadBuilder({'read1': read1, 'read2' : read2})
+		reader = ["read1", "read2"]
+		group_keys = _identify_common_group_keys(builder, reader, MockLogger(), read_len)
+		self.assertEqual(0, len(group_keys))
 
-                group_keys = _identify_common_group_keys(builder, reader, MockLogger())
-
-                self.assertEqual(0, len(group_keys))
-
-        def test_identify_common_group_keys_keyOnlyOnOneSide(self):
-                read1 = MockSplitRead("key1", "L")
-                read2 = MockSplitRead("key1", "L")
-                builder = MockSplitReadBuilder({'read1': read1, 'read2' : read2})
-                reader = ["read1", "read2"]
-                
-                group_keys = _identify_common_group_keys(builder, reader, MockLogger())
-
-                self.assertEqual(0, len(group_keys))
+	def test_identify_common_group_keys_keyOnlyOnOneSide(self):
+		read1 = MockSplitRead("key1", "L")
+		read2 = MockSplitRead("key1", "L")
+		read_len = read1.split_len + read2.split_len
+		builder = MockSplitReadBuilder({'read1': read1, 'read2' : read2})
+		reader = ["read1", "read2"]		
+		group_keys = _identify_common_group_keys(builder, reader, MockLogger(), read_len)
+		self.assertEqual(0, len(group_keys))
 
 	def test_build_read_groups_singleRead(self):
 		read1 = MockSplitRead("key1","L")
@@ -258,18 +239,22 @@ class MockPairRowFormatter():
 
 		
 class MockSplitRead():
-	def __init__(self, key, side, name = "name", format = "format", distance=42):
-		self.key = key
+	def __init__(self, key, side, name = "name", format = "format", distance=42, split_len=33):
+		self._key = key
 		self.name = name
 		self.side = side
 		self._format = format
 		self._distance = distance
+		self.split_len = split_len
 
 	def format(self, delimiter="\t"):
 		return self._format
 		
 	def distance(self, distance):
 		return self._distance
+		
+	def key(self):
+		return self._key
 
 	def __repr__(self):
 		return self.name
@@ -282,13 +267,10 @@ class MockSplitReadBuilder():
 	def build(self, line):
 		return self._split_reads[line]
 
-	def key_side(self, line):
-		sr = self._split_reads[line]
-		return (sr.key, sr.side)
 
 
 def initParams(updates):
-	params = {'name':"name", 'side':"L", 'split_len':10, 'strand':"strand", 'chr':"chr", 'position':100, 'matches':5 } 
+	params = {'name':"name", 'side':"L", 'split_len':10, 'strand':"strand", 'chr':"chr", 'position':100, 'matches':5, 'read_len': 33} 
 	params.update(updates);
 	return params
 

@@ -6,6 +6,9 @@ IdentifyPairs.py
 Accepts a file of aligned split reads and creates a file of left/right read pairs based on a specified read length and min/max distance criteria. 
 This ia a part of the read-split-walk process. 
 
+Example usage:
+./IdentifyPairs.py alignedSplitReadsFromBowtie.txt pairedSplitReads.out 77 2 39999 2> pairedSplitReads.log
+(See usage detals at bottom.)
 
 Implementation:
 The script parses the input file, assembling a set of "read groups keys". A "read group" is a set of matching left and right reads and the set of keys
@@ -14,8 +17,8 @@ Based on those keys, the program reads the file again, creating a hash of read g
 The collection of pairs is filtered on distance and written to the output file. 
 
 This program is single threaded and will consume one processor for the duration of the run.
-As of 6/16/2013, running a 16Gb input file (on ccmb-comp3 with no other load) took approximately 30 minutes and 30Gb of resident memory, producing a !Gb output file.  
-Larger runs can be accomodated in less memory by partitioning the input files by chromosome. 
+Running a 16Gb input file (on a large server with no other load) took approximately 30 minutes and 30Gb of resident memory, producing a 1Gb output file.  
+Larger runs can be accomodated in less memory by partitioning the input files by chromosome.  See additional script SplitFile.py for safe ways to partition the input.
 
 
 Modifications:
@@ -54,21 +57,31 @@ class StdErrLogger():
 
 class SplitRead():
 	"""Basic data structure for an individual read"""
-	def __init__(self, name, side, split_len, strand, chr, position, matches):
+	def __init__(self, name, side, split_len, strand, chr, position, matches, read_len):
 		self.name = name
 		self.side = side
-		self._split_len = split_len
+		self.split_len = split_len
 		self._strand = strand
 		self._chr = chr
 		self._position = position
 		self._matches = matches
+		self._read_len = read_len
 	
 	def format(self, delimiter = "\t"):
-		return delimiter.join([self.name, self.side, str(self._split_len), self._strand, self._chr, str(self._position), str(self._matches)])
+		return delimiter.join([self.name, self.side, str(self.split_len), self._strand, self._chr, str(self._position), str(self._matches)])
 	
 	def distance(self, otherRead):
 		"""Absolute distance between this position and the otherRead"""
 		return abs(self._position - otherRead._position)
+		
+	def key(self):
+		"""Return a key."""
+		if self.side == "L":
+			return "{0}|{1}|{2}|{3}|{4}".format(self.name, self.side, self.split_len, self._strand, self._chr)
+		else:  
+			new_side = "L"
+			new_split_len = self._read_len - int(self.split_len)
+			return "{0}|{1}|{2}|{3}|{4}".format(self.name, new_side, new_split_len, self._strand, self._chr)
 
 
 class LegacySplitReadBuilder():
@@ -79,21 +92,11 @@ class LegacySplitReadBuilder():
 	
 	def build(self, line):
 		try:
-			(name, side, split_len, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter) 
-			return SplitRead(name, side, int(split_len), strand, chr, int(position), int(matches))
+			(name, side, split_len, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter)[:9]
+			return SplitRead(name, side, int(split_len), strand, chr, int(position), int(matches), self._read_len)
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
-		
-	def key_side(self, line, delimiter = "\t"):
-		"""Parse a key and side form a line.  Note that "right side" reads return complementary "left side" keys."""
-		(name, side, split_len, strand, chr) = line.split(self._delimiter)[:5]
-		if side == "L":
-			return ("{0}|{1}|{2}|{3}|{4}".format(name, side, split_len, strand, chr), side)
-		else:  
-			new_side = "L"
-			new_split_len = self._read_len - int(split_len)
-			return ("{0}|{1}|{2}|{3}|{4}".format(name, new_side, new_split_len, strand, chr), side)
-			
+
 
 
 class BowtieSplitReadBuilder():
@@ -105,24 +108,12 @@ class BowtieSplitReadBuilder():
 		
 	def build(self, line):
 		try:
-			(name, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter)
+			(name, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter)[:7]
 			m = self._name_re.match(name)
 			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
-			return SplitRead(subname, side, int(split_len), strand, chr, int(position), int(matches))
+			return SplitRead(subname, side, int(split_len), strand, chr, int(position), int(matches), self._read_len)
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
-		
-	def key_side(self, line):
-		"""Parse a key and side form a line.  Note that "right side" reads return complementary "left side" keys."""
-		(name, strand, chr) = line.split(self._delimiter)[:3]
-		m = self._name_re.match(name)
-		(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
-		if side == "L":
-			return ("{0}|{1}|{2}|{3}|{4}".format(subname, side, split_len, strand, chr), side)
-		else:  
-			new_side = "L"
-			new_split_len = self._read_len - int(split_len)
-			return ("{0}|{1}|{2}|{3}|{4}".format(subname, new_side, new_split_len, strand, chr), side)
 
 
 
@@ -135,7 +126,7 @@ class SplitReadParseError(Exception):
 		return repr("Could not parse line: '{0}' ; {1}".format(self.line, str(self.root_exception)))
 
 
-def _identify_common_group_keys(split_read_builder, reader, logger):
+def _identify_common_group_keys(split_read_builder, reader, logger, read_len):
 	"""Reads every line, returning the set of all read keys that appeared on both the left and right sides.  
 Each key in the result identifies a "read group"; all reads with these keys will appear in the output file"""
 
@@ -143,18 +134,28 @@ Each key in the result identifies a "read group"; all reads with these keys will
 	gc.disable()
 	group_keys = { "L" : set(), "R" : set() }
 	count = 0
+	min_len = read_len
+	max_len = 0
 	for line in reader:
 		count +=1
 		if count % 100000 == 1:
 			logger.log("identify_group_keys|Processing line {0}".format(count))
-		line = line.rstrip()
-		(key, side) = split_read_builder.key_side(line)
-		group_keys[side].add(key)
+		#line = line.rstrip()
+		split_read = split_read_builder.build(line)
+		min_len = min(split_read.split_len, min_len)
+		max_len = max(split_read.split_len, max_len)
+		key = split_read.key()
+		group_keys[split_read.side].add(key)
 	logger.log("identify_group_keys|Processed {0} lines".format(count))
 	
 	logger.log("identify_group_keys|Intersecting {0} left keys with {1} right keys".format(len(group_keys["L"]), len(group_keys["R"]))) 
 	common_keys = group_keys["L"].intersection(group_keys["R"])
 	logger.log("identify_group_keys|Found {0} common keys".format(len(common_keys)))
+
+	# test lengths
+	computed_len = min_len + max_len 
+	if (computed_len != read_len):
+		raise ValueError("Read length validation failed.  Specified length {0} doesn't equal computed length {1}".format(read_len, computed_len))
 
 	gc.enable()
 	return common_keys
@@ -177,10 +178,11 @@ def _build_read_groups(common_keys, split_read_builder, reader, logger):
 		count += 1
 		if count % 100000 == 1:
 			logger.log("build_read_groups|processing line {0}".format(count))
-		(key, side) = split_read_builder.key_side(line)
+		splitread = split_read_builder.build(line)
+		key = splitread.key()
 		if key in common_keys:
-			_add(read_groups, key, split_read_builder.build(line))
-
+			_add(read_groups, key, splitread)
+			
 	logger.log("build_read_groups|done:processed {0} lines".format(count))
 
 	gc.enable()
@@ -234,7 +236,7 @@ def _write_pairs(pairs, writer, logger, delimiter="\t"):
 	
 def main(read_len, input_file_name, output_file_name, min_dist, max_dist):
 	
-	builder = SplitReadBuilder(read_len)
+	builder = LegacySplitReadBuilder(read_len)
 	logger = StdErrLogger(True)
 	
 	logger.log("process_file|read_len:{0}, input_file_name:{1}, output_file_name:{2} minimum_distance:{3}, maximum_distance:{4}".format(read_len, \
@@ -243,7 +245,7 @@ def main(read_len, input_file_name, output_file_name, min_dist, max_dist):
 	
 	
 	reader = open(input_file_name, "r")
-	common_keys = _identify_common_group_keys(builder, reader, logger)
+	common_keys = _identify_common_group_keys(builder, reader, logger, read_len)
 	reader.close()
 
 	reader = open(input_file_name, "r")
@@ -253,12 +255,13 @@ def main(read_len, input_file_name, output_file_name, min_dist, max_dist):
 	pairs = _build_pairs_from_groups(read_groups, logger)
 	pairs = _filter_on_distance(pairs, min_dist, max_dist, logger)
 
-        writer = open(output_file_name, "w")	
+	writer = open(output_file_name, "w")	
 	_write_pairs(pairs, writer, logger)
 	writer.close()
 
 	logger.log("process_file|output written to {0}".format(output_file_name))
 	logger.log("process_file|{0} complete".format(input_file_name))
+	
 
 if __name__ == "__main__":
 
