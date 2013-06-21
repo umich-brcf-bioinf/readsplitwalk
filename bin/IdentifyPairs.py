@@ -236,7 +236,7 @@ def _write_pairs(pairs, writer, logger, delimiter="\t"):
 	
 def main(read_len, input_file_name, output_file_name, min_dist, max_dist):
 	
-	builder = LegacySplitReadBuilder(read_len)
+	builder = BowtieSplitReadBuilder(read_len)
 	logger = StdErrLogger(True)
 	
 	logger.log("process_file|read_len:{0}, input_file_name:{1}, output_file_name:{2} minimum_distance:{3}, maximum_distance:{4}".format(read_len, \

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2.6
 
 import sys ; sys.path.insert(0, "../bin")
 #input example: /ccmb/BioinfCore_ARCHIVE/Vol01/ccmbCoreProjects_Archieve_YBAI/Run_46/Probe/s6.unmapped.fa
@@ -92,6 +92,27 @@ file_header2
 @h1
 ABC
 h1
+123
+@h2
+DEF
++h2
+456""")
+
+		stanzas = [stanza for stanza in stanza_generator(reader, "@")]
+
+		self.assertEquals(2, len(stanzas))
+		self.assertEquals("@h1", stanzas[0].main_header)
+		self.assertEquals("@h2", stanzas[1].main_header)
+
+
+
+	def test_stanza_generator_tricky_stanza(self):
+		reader = MockReader(\
+"""file_header1
+file_header2
+@h1
+ABC
+@d1
 123
 @h2
 DEF

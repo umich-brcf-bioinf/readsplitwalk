@@ -53,13 +53,15 @@ def stanza_generator(reader, stanza_delimiter):
 		stanza_str = line
 		if stanza_str.startswith(stanza_delimiter):
 			break
-			
+	count = 1		
 	for line in reader:
-		if line.startswith(stanza_delimiter):
+		if count % 4 == 0:
 			yield FQStanza.parse(stanza_str)
 			stanza_str = line
+			count = 1
 		else:
 			stanza_str += line
+			count += 1
 	yield FQStanza.parse(stanza_str)
 
 

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2.6
 
 import sys ; sys.path.insert(0, "../bin")
 import unittest
