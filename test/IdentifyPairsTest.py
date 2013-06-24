@@ -2,7 +2,7 @@
 
 import sys ; sys.path.insert(0, "../bin")
 import unittest
-from IdentifyPairs import BowtieSplitReadBuilder, LegacySplitReadBuilder, SplitRead, _build_read_groups, _write_pairs, _build_pairs_from_groups, _identify_common_group_keys
+from IdentifyPairs import BowtieSplitReadBuilder, LegacySplitReadBuilder, SamSplitReadBuilder, SplitRead, _build_read_groups, _write_pairs, _build_pairs_from_groups, _identify_common_group_keys
 
 class LegacySplitReadBuilderTest(unittest.TestCase):
 
@@ -39,6 +39,26 @@ class BowtieSplitReadBuilderTest(unittest.TestCase):
 		self.assertEqual("chr", split_read._chr)
 		self.assertEqual(100, split_read._position)
 		self.assertEqual(5, split_read._matches)
+
+	def test_build_raisesOnMalformedInput(self):
+		builder = BowtieSplitReadBuilder(30,"|")
+		self.assertRaises(Exception, builder.build, "name|L|10")
+		
+		
+class SamSplitReadBuilderTest(unittest.TestCase):
+
+	def test_build(self):
+		read_len = 30		
+		builder = SamSplitReadBuilder(read_len, "|")
+		split_read = builder.build("hw1:name-L-10|16|chr|100|25|cigar|rnext|5M|*|0|0|GCAGT|DDDCC@|NM:i:0  X0:i:1")
+	
+		self.assertEqual("hw1:name", split_read.name)
+		self.assertEqual("L", split_read.side)
+		self.assertEqual(10, split_read.split_len)
+		self.assertEqual("-", split_read._strand)
+		self.assertEqual("chr", split_read._chr)
+		self.assertEqual(100, split_read._position)
+		self.assertEqual(None, split_read._matches)
 
 	def test_build_raisesOnMalformedInput(self):
 		builder = BowtieSplitReadBuilder(30,"|")

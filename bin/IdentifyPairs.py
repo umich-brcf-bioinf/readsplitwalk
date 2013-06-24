@@ -37,6 +37,19 @@ import resource
 import sys, re
 
 
+class IdentifyPairsException(Exception):
+	"""Base class for exceptions in this module."""
+	pass
+
+class SplitReadParseError(IdentifyPairsException):
+	def __init__(self, line, root_exception):
+		self.line = line
+		self.root_exception = root_exception
+	
+	def __str__(self):
+		return repr("Could not parse line: '{0}' ; {1}".format(self.line, str(self.root_exception)))
+
+
 class StdErrLogger():
 	"""Writes basic utilization data to stderr"""	
 	def __init__(self, verbose = False):
@@ -68,6 +81,7 @@ class SplitRead():
 		self._read_len = read_len
 	
 	def format(self, delimiter = "\t"):
+		"""Returns a formatted string that accepts a field delimiter"""
 		return delimiter.join([self.name, self.side, str(self.split_len), self._strand, self._chr, str(self._position), str(self._matches)])
 	
 	def distance(self, otherRead):
@@ -75,7 +89,8 @@ class SplitRead():
 		return abs(self._position - otherRead._position)
 		
 	def key(self):
-		"""Return a key."""
+		"""Returns a key for this read-group.  A left or right split read from the same initial read aligning to any position on the same chromosome and 
+strand  would be part of the same read group.  For this reason, the key is always the 'left-side' key."""
 		if self.side == "L":
 			return "{0}|{1}|{2}|{3}|{4}".format(self.name, self.side, self.split_len, self._strand, self._chr)
 		else:  
@@ -85,7 +100,7 @@ class SplitRead():
 
 
 class LegacySplitReadBuilder():
-	"""Interprets a key, side, or SplitRead from a line of text"""
+	"""Interprets a SplitRead from a line of a non-standard text file."""
 	def __init__(self, read_len, delimiter = "\t"):
 		self._read_len = read_len
 		self._delimiter = delimiter
@@ -100,7 +115,7 @@ class LegacySplitReadBuilder():
 
 
 class BowtieSplitReadBuilder():
-	"""Interprets a key, side, or SplitRead from a line of text"""
+	"""Interprets SplitRead from a line of a bowtie alignment file."""
 	def __init__(self, read_len, delimiter = "\t"):
 		self._read_len = read_len
 		self._delimiter = delimiter
@@ -116,14 +131,23 @@ class BowtieSplitReadBuilder():
 			raise SplitReadParseError(line, e)
 
 
-
-class SplitReadParseError(Exception):
-	def __init__(self, line, root_exception):
-		self.line = line
-		self.root_exception = root_exception
-	
-	def __str__(self):
-		return repr("Could not parse line: '{0}' ; {1}".format(self.line, str(self.root_exception)))
+class SamSplitReadBuilder():
+	"""Interprets SplitRead from a line of a SAM file."""
+	def __init__(self, read_len, delimiter = "\t"):
+		self._read_len = read_len
+		self._delimiter = delimiter
+		self._name_re = re.compile(r"(.+)-([LR])-([\d]+)$")
+		
+	def build(self, line):
+		try:
+			(name, flag, rname, position, mapq, cigar, rnext, pnext, tlen, seq, quality) = line.rstrip().split(self._delimiter)[:11]
+			m = self._name_re.match(name)
+			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
+			strand = "+" if int(flag) & 16 == 0 else "-"
+			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._read_len)
+		except ValueError as e:
+			raise SplitReadParseError(line, e)
+			
 
 
 def _identify_common_group_keys(split_read_builder, reader, logger, read_len):

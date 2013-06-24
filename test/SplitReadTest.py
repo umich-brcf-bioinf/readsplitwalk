@@ -14,10 +14,10 @@ from SplitRead import FQStanza, build_splits, write_stanzas, stanza_generator
 class FQStanzaTest(unittest.TestCase):
 	
 	def test_parse(self):
-		stanza_string = "@HWI-EAS159:6:1:6:610#0/1\nGCACGGTTCTGTAGTCTNCAGAAGTATCNGATNNG\n+HWI-EAS159:6:1:6:610#0/1\naaa^W\]a]^Z^]P[_[DZWR[\\\BBBBBBBBBB\n"
+		stanza_string = "HWI-D00196:21:H0DC6ADXX:1:1101:1306:2089 1:N:0:TAGCTT\nGCACGGTTCTGTAGTCTNCAGAAGTATCNGATNNG\n+HWI-EAS159:6:1:6:610#0/1\naaa^W\]a]^Z^]P[_[DZWR[\\\BBBBBBBBBB\n"
 		actual_stanza = FQStanza.parse(stanza_string)
 		
-		self.assertEqual("@HWI-EAS159:6:1:6:610#0/1", actual_stanza.main_header)
+		self.assertEqual("HWI-D00196:21:H0DC6ADXX:1:1101:1306:2089_1:N:0:TAGCTT", actual_stanza.main_header)
 		self.assertEqual("GCACGGTTCTGTAGTCTNCAGAAGTATCNGATNNG", actual_stanza.seq)
 		self.assertEqual("+HWI-EAS159:6:1:6:610#0/1", actual_stanza.score_header)
 		self.assertEqual("aaa^W\]a]^Z^]P[_[DZWR[\\\BBBBBBBBBB", actual_stanza.score)

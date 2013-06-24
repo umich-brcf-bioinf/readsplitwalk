@@ -14,6 +14,8 @@ class FQStanza(object):
 		
 	def __init__(self, main_header, seq, score_header, score):	
 		(self.main_header, self.seq, self.score_header, self.score) = (main_header, seq, score_header, score)
+		# convert spaces in main header to underscores (bowtie1 issue)
+		self.main_header = re.sub(" ", "_", self.main_header)
 
 	def split(self, split_position):
 		right_size = len(self.seq)-split_position

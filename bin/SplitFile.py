@@ -4,6 +4,8 @@ import sys, os, re
 import datetime
 import resource
 
+_SPLIT_FILE_EXTENSION = "prt"
+
 def splitfile(filesystem, filepath, output_path, col_index, delim):
 	count = 0
 	# first pass to get values
@@ -14,7 +16,6 @@ def splitfile(filesystem, filepath, output_path, col_index, delim):
 		count += 1
 		line = line.rstrip()
 		value = delim_re.split(line)[col_index]
-		#value = line.split(delim)[col_index]
 		values.add(value)
 
 		if count % 10000 == 1:
@@ -27,7 +28,7 @@ def splitfile(filesystem, filepath, output_path, col_index, delim):
 	subfiles = {}
 	base_filename = os.path.basename(filepath)
 	for value in values:
-		subfilen = "{0}{1}.{2}.prt".format(output_path, base_filename, value)
+		subfilen = "{0}{1}.{2}.{3}".format(output_path, base_filename, value, _SPLIT_FILE_EXTENSION)
 		subfile = filesystem.open_file(subfilen, "w")
 		subfiles[value] = subfile
 	
@@ -35,7 +36,6 @@ def splitfile(filesystem, filepath, output_path, col_index, delim):
 	datafile = filesystem.open_file(filepath, "r")
 	for line in datafile:
 		cvalue = delim_re.split(line.rstrip())[col_index]
-		#cvalue = line.rstrip().split(delim)[col_index]
 		subfiles[cvalue].write(line)
 	
 	datafile.close()
