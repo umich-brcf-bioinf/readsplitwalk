@@ -2,7 +2,7 @@
 
 import sys ; sys.path.insert(0, "../bin")
 import unittest
-from IdentifyPairs import BowtieSplitReadBuilder, LegacySplitReadBuilder, SamSplitReadBuilder, SplitRead, _build_read_groups, _write_pairs, _build_pairs_from_groups, _identify_common_group_keys
+from identify_pairs import BowtieSplitReadBuilder, LegacySplitReadBuilder, SamSplitReadBuilder, SplitRead, _build_read_groups, _write_pairs, _build_pairs_from_groups, _identify_common_group_keys
 
 class LegacySplitReadBuilderTest(unittest.TestCase):
 

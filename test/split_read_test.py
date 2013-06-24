@@ -8,7 +8,7 @@ import unittest
 import tempfile
 import os
 
-from SplitRead import FQStanza, build_splits, write_stanzas, stanza_generator
+from split_read import FQStanza, build_splits, write_stanzas, stanza_generator
 
 
 class FQStanzaTest(unittest.TestCase):

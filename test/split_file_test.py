@@ -5,7 +5,7 @@ import unittest
 import tempfile
 import os
 
-from SplitFile import splitfile, FileSystem
+from split_file import splitfile, FileSystem
 
 #from IdentifyPairsTest import MockWriter
 
