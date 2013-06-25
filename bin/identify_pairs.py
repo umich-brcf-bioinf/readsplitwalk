@@ -70,7 +70,7 @@ class StdErrLogger():
 
 class SplitRead():
 	"""Basic data structure for an individual read"""
-	def __init__(self, name, side, split_len, strand, chr, position, matches, read_len):
+	def __init__(self, name, side, split_len, strand, chr, position, matches, read_len, seq, quality):
 		self.name = name
 		self.side = side
 		self.split_len = split_len
@@ -79,10 +79,18 @@ class SplitRead():
 		self._position = position
 		self._matches = matches
 		self._read_len = read_len
+		self._seq = seq
+		self._quality = quality
 	
 	def format(self, delimiter = "\t"):
 		"""Returns a formatted string that accepts a field delimiter"""
 		return delimiter.join([self.name, self.side, str(self.split_len), self._strand, self._chr, str(self._position), str(self._matches)])
+		
+	def sam_format(self):
+		""" Returns a sam formatted string that accepts a field delimiter"""
+		flag = 0 if self._strand == "+" else 16
+		return "{0}\t{1}\t{2}\t{3}\t25\t{4}M\t*\t0\t0\t{5}\t{6}".format(self.name, flag, self._chr, self._position, self.split_len, self._seq, self._quality)
+		
 	
 	def distance(self, otherRead):
 		"""Absolute distance between this position and the otherRead"""
@@ -108,7 +116,7 @@ class LegacySplitReadBuilder():
 	def build(self, line):
 		try:
 			(name, side, split_len, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter)[:9]
-			return SplitRead(name, side, int(split_len), strand, chr, int(position), int(matches), self._read_len)
+			return SplitRead(name, side, int(split_len), strand, chr, int(position), int(matches), self._read_len, seq, quality)
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
 
@@ -126,7 +134,7 @@ class BowtieSplitReadBuilder():
 			(name, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter)[:7]
 			m = self._name_re.match(name)
 			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
-			return SplitRead(subname, side, int(split_len), strand, chr, int(position), int(matches), self._read_len)
+			return SplitRead(subname, side, int(split_len), strand, chr, int(position), int(matches), self._read_len, seq, quality)
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
 
@@ -144,7 +152,7 @@ class SamSplitReadBuilder():
 			m = self._name_re.match(name)
 			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
 			strand = "+" if int(flag) & 16 == 0 else "-"
-			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._read_len)
+			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._read_len, seq, quality)
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
 			
@@ -161,6 +169,8 @@ Each key in the result identifies a "read group"; all reads with these keys will
 	min_len = read_len
 	max_len = 0
 	for line in reader:
+		#skip headers
+		if line.startswith("@"): continue
 		count +=1
 		if count % 100000 == 1:
 			logger.log("identify_group_keys|Processing line {0}".format(count))
@@ -199,6 +209,8 @@ def _build_read_groups(common_keys, split_read_builder, reader, logger):
 	read_groups = {}
 	count = 0
 	for line in reader:
+		#skip headers
+		if line.startswith("@"): continue
 		count += 1
 		if count % 100000 == 1:
 			logger.log("build_read_groups|processing line {0}".format(count))
@@ -243,7 +255,7 @@ def _filter_on_distance(pairs, min_distance, max_distance, logger):
 	return filtered_list
 
 
-def _write_pairs(pairs, writer, logger, delimiter="\t"):
+def _write_rsw_pairs(pairs, writer, logger, delimiter="\t"):
         count = 0
         for pair in pairs:
                 count += 1
@@ -257,10 +269,25 @@ def _write_pairs(pairs, writer, logger, delimiter="\t"):
 
         logger.log("write_pairs|processed {0} pairs".format(count))
 
+def _write_sam_pairs(pairs, writer, logger):
+	count = 0
+	for pair in pairs:
+		count += 1
+		left_read = pair[0].sam_format()
+		right_read = pair[1].sam_format()
+		writer.write(left_read)
+		writer.write("\n")
+		writer.write(right_read)
+		writer.write("\n")
+		if count % 100000 == 1:
+				logger.log("write_sam_pairs|processing pair {0}".format(count))
+
+	logger.log("write_sam_pairs|processed {0} pairs".format(count))
 	
-def main(read_len, input_file_name, output_file_name, min_dist, max_dist):
 	
-	builder = BowtieSplitReadBuilder(read_len)
+def main(read_len, input_file_name, output_file_name, sam_output_file_name, min_dist, max_dist):
+	
+	builder = SamSplitReadBuilder(read_len)
 	logger = StdErrLogger(True)
 	
 	logger.log("process_file|read_len:{0}, input_file_name:{1}, output_file_name:{2} minimum_distance:{3}, maximum_distance:{4}".format(read_len, \
@@ -280,7 +307,11 @@ def main(read_len, input_file_name, output_file_name, min_dist, max_dist):
 	pairs = _filter_on_distance(pairs, min_dist, max_dist, logger)
 
 	writer = open(output_file_name, "w")	
-	_write_pairs(pairs, writer, logger)
+	_write_rsw_pairs(pairs, writer, logger)
+	writer.close()
+	
+	writer = open(sam_output_file_name, "w")	
+	_write_sam_pairs(pairs, writer, logger)
 	writer.close()
 
 	logger.log("process_file|output written to {0}".format(output_file_name))
@@ -294,6 +325,11 @@ if __name__ == "__main__":
 		sys.exit() 
 
 	(infile, outfile, read_len, min_distance, max_distance) = sys.argv[1:]
+	if (re.match(".", outfile)):
+		outfile_root = re.match("(.+)\.[\w]+$", outfile)
+	else:
+		outfile_root = outfile
+	sam_outfile = "{0}.sam".format(outfile_root)
 
 	# check params
 	try:
@@ -307,5 +343,5 @@ if __name__ == "__main__":
 		print "usage: {0} [infile] [outfile] [read_len] [min_distance] [max_distance]".format(os.path.basename(sys.argv[0]))
 		sys.exit() 	
 
-	main(read_len, infile, outfile, min_distance, max_distance) 
+	main(read_len, infile, outfile, sam_outfile, min_distance, max_distance) 
 	print "done."
