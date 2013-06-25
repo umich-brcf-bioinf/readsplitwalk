@@ -329,7 +329,7 @@ if __name__ == "__main__":
 		outfile_root = re.match("(.+)\.[\w]+$", outfile)
 	else:
 		outfile_root = outfile
-	sam_outfile = "{0}.sam".format(outfile_root)
+	sam_outfile = "{0}.sam".format(outfile_root.group(1))
 
 	# check params
 	try:
