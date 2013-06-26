@@ -1,20 +1,26 @@
 #! /usr/bin/env python
 
 """
-IdentifyPairs.py
+identify_pairs.py
 6/7/2013 - cgates/pulintz
-Accepts a file of aligned split reads and creates a file of left/right read pairs based on a specified read length and min/max distance criteria. 
-This ia a part of the read-split-walk process. 
+Accepts a file of aligned split reads and creates two output files with left/right read pairs based on a specified read length and min/max distance criteria. 
+The first output file is a custom format which shows each pair on a single line including a distance between the two alignments.
+The second output file is a subset of the input file (each alignment on a single line) filtered to contain only paired alignments. 
+
 
 Example usage:
-./IdentifyPairs.py alignedSplitReadsFromBowtie.txt pairedSplitReads.out 77 2 39999 2> pairedSplitReads.log
+./identify_pairs.py alignedSplitReadsFromBowtie.sam pairedSplitReads.out 77 2 39999 2> pairedSplitReads.log
 (See usage detals at bottom.)
+
 
 Implementation:
 The script parses the input file, assembling a set of "read groups keys". A "read group" is a set of matching left and right reads and the set of keys
 define the universe of reads in the output (typically a small fraction of the input). 
 Based on those keys, the program reads the file again, creating a hash of read groups which are then flattened to a collection of individual left-right pairs along with a distance (one line per pair). 
 The collection of pairs is filtered on distance and written to the output file. 
+
+The input file can be all the alignments for a sample. Input files can be paralellized (and memory footprint reduced) by splitting input into multiple files,
+partitioning by chromosome, strand, or both. Importantly, the program assumes that all possible pairs exist within a single file, so each file should contain all alignments for a chromosome/strand, so you cannot (for example) partition the input files by chromosome region.
 
 This program is single threaded and will consume one processor for the duration of the run.
 Running a 16Gb input file (on a large server with no other load) took approximately 30 minutes and 30Gb of resident memory, producing a 1Gb output file.  
@@ -28,6 +34,19 @@ To reduce memory consumption and improve performance, added step to identify com
 6/16/2013 - cgates
 Disabled generational garbage collection within several methods to avoid a gc bug that causes appends to slow down geometrically in large lists.
 Note this does not affect actual gc behavior as there are no cyclical data structures.
+
+6/21/2013 - cgates/pulintz
+Added ability to accept SAM file as input
+
+6/24/2013 - cgates/pulintz
+Added generation of SAM file alongside original output file. 
+
+6/26/2013 - cgates
+Adjusted SplitRead to not store sequence/quality (to reduce memory usage).
+Adjusted to skip non-aligned reads in a SAM input file.
+Adjusted generation of filtered SAM file to pass through subset of input lines instead of creating SAM data from SplitRead objects.
+Added filter on pair orientation to exclude pairs whose left/right-strand orientation was incorrect.
+
 """
 
 import datetime
