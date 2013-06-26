@@ -5,9 +5,7 @@ import unittest
 import tempfile
 import os
 
-from split_file import splitfile, FileSystem
-
-#from IdentifyPairsTest import MockWriter
+from partition_file import splitfile, FileSystem
 
 class SplitFileTest(unittest.TestCase):
 	

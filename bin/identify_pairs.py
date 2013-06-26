@@ -19,13 +19,13 @@ define the universe of reads in the output (typically a small fraction of the in
 Based on those keys, the program reads the file again, creating a hash of read groups which are then flattened to a collection of individual left-right pairs along with a distance (one line per pair). 
 The collection of pairs is filtered on distance and written to the output file. 
 
-The input file can be all the alignments for a sample. Input files can be paralellized (and memory footprint reduced) by splitting input into multiple files,
-partitioning by chromosome, strand, or both. Importantly, the program assumes that all possible pairs exist within a single file, so each file should contain all alignments for a chromosome/strand, so you cannot (for example) partition the input files by chromosome region.
-
 This program is single threaded and will consume one processor for the duration of the run.
-Running a 16Gb input file (on a large server with no other load) took approximately 30 minutes and 30Gb of resident memory, producing a 1Gb output file.  
-Larger runs can be accomodated in less memory by partitioning the input files by chromosome.  See additional script SplitFile.py for safe ways to partition the input.
+Running a 50Gb input file (on a large server with no other load) took approximately 100 minutes and 15Gb of resident memory, producing a 200Mb output file.  
 
+The input file can be all the alignments for a sample. Input files can be paralellized (and memory footprint reduced) by splitting input into multiple files,
+partitioning by chromosome, strand, or both. Importantly, the program assumes that all possible pairs exist within a single file, so each file should contain 
+all alignments for a chromosome/strand, so you cannot (for example) partition the input files by chromosome region.
+See partition_file.py for details on partitioning a file.
 
 Modifications:
 6/13/2013 - cgates
