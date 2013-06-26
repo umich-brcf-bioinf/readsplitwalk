@@ -20,7 +20,7 @@ Based on those keys, the program reads the file again, creating a hash of read g
 The collection of pairs is filtered on distance and written to the output file. 
 
 This program is single threaded and will consume one processor for the duration of the run.
-Running a 50Gb input file (on a large server with no other load) took approximately 100 minutes and 15Gb of resident memory, producing a 200Mb output file.  
+Running a 50Gb SAM input file (on a large server with no other load) took approximately 3 hours and 15Gb of resident memory, producing a 200Mb output file.  
 
 The input file can be all the alignments for a sample. Input files can be paralellized (and memory footprint reduced) by splitting input into multiple files,
 partitioning by chromosome, strand, or both. Importantly, the program assumes that all possible pairs exist within a single file, so each file should contain 
