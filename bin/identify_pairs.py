@@ -22,9 +22,9 @@ The collection of pairs is filtered on distance and written to the output file.
 This program is single threaded and will consume one processor for the duration of the run.
 Running a 50Gb SAM input file (on a large server with no other load) took approximately 3 hours and 15Gb of resident memory, producing a 200Mb output file.  
 
-The input file can be all the alignments for a sample. Input files can be paralellized (and memory footprint reduced) by splitting input into multiple files,
+The input file can be all the alignments for a sample. Processing can be paralellized (and memory footprint reduced) by splitting input into multiple files,
 partitioning by chromosome, strand, or both. Importantly, the program assumes that all possible pairs exist within a single file, so each file should contain 
-all alignments for a chromosome/strand, so you cannot (for example) partition the input files by chromosome region.
+all alignments for a chromosome/strand. Thus, for example, you cannot partition the input files by chromosome region.
 See partition_file.py for details on partitioning a file.
 
 Modifications:
@@ -47,13 +47,22 @@ Adjusted to skip non-aligned reads in a SAM input file.
 Adjusted generation of filtered SAM file to pass through subset of input lines instead of creating SAM data from SplitRead objects.
 Added filter on pair orientation to exclude pairs whose left/right-strand orientation was incorrect.
 
+
+6/27/2013 - cgates/pulintz
+Switched from if-blocks to polymorphic handling of unaligned reads by introducing two new classes UnalignedSplitRead, SplitReadValidator, and also 
+refactoring methods into SplitRead (write_sam_pairs, add_to_read_groups, add_to_group_keys, check_split_length). This reduced method sizes, improved SplitRead encapsulation,
+simplified testing, and (because we now avoid creating a SplitRead for unaligned reads), improved performance.
+Refatored how filtering works to use a filter chain/composite filter pattern.
+Minor cosmetic adjustments to Logger.
 """
 
 import datetime
 import gc
 import os
-import resource
-import sys, re
+import re
+import resource	
+import sys
+import traceback
 
 
 class IdentifyPairsException(Exception):
@@ -82,27 +91,28 @@ class StdErrLogger():
 		if (self._verbose):
 			usage = resource.getrusage(resource.RUSAGE_SELF)
 			memory_used = usage.ru_maxrss/1024
-			self._log("usertime(s)={0}|systime(s)={1}|peak_memory_used(mb)={2}|{3}".format(usage.ru_utime, usage.ru_stime, memory_used, message))
+			function_name = traceback.extract_stack()[-2:-1][0][2]	
+			self._log("usertime(s)={0:.0f}|systime(s)={1:.0f}|peak_memory_used(mb)={2}|{3}|{4}".format(usage.ru_utime, usage.ru_stime, memory_used, function_name, message))
 		else:
 			self._log(message)
 
 
 class SplitRead():
 	"""Basic data structure for an individual read"""
-	def __init__(self, name, side, split_len, strand, chr, position, matches, read_len, aligned=True):
-		self.name = name
-		self.side = side
-		self.split_len = split_len
+	def __init__(self, name, side, split_len, strand, chr, position, matches, read_len):
+		self._name = name
+		self._side = side
+		self._split_len = split_len
 		self._strand = strand
 		self._chr = chr
 		self._position = position
 		self._matches = matches
 		self._read_len = read_len
-		self.aligned = aligned
+
 	
 	def format(self, delimiter = "\t"):
 		"""Returns a formatted string that accepts a field delimiter"""
-		return delimiter.join([self.name, self.side, str(self.split_len), self._strand, self._chr, str(self._position), str(self._matches)])
+		return delimiter.join([self._name, self._side, str(self._split_len), self._strand, self._chr, str(self._position), str(self._matches)])
 		
 	def distance(self, other):
 		"""Absolute distance between this position and the otherRead"""
@@ -110,28 +120,91 @@ class SplitRead():
 
 	def is_oriented(self, other):
 		"""Returns true if other is on different side, same strand, and positioned correctly relative to self"""
-		if self.side == other.side or self._strand != other._strand:
+		if self._side == other._side or self._strand != other._strand:
 			return False
-		(left_position, right_position)  = (self._position, other._position) if self.side == 'L' else (other._position, self._position)
+		(left_position, right_position)  = (self._position, other._position) if self._side == 'L' else (other._position, self._position)
 		strand = 1 if self._strand == "+" else -1 
 		return (right_position - left_position) * strand > 0
 
 	def key(self):
 		"""Returns a key for this read-group.  A left or right split read from the same initial read aligning to any position on the same chromosome and 
 strand  would be part of the same read group.  For this reason, the key is always the 'left-side' key."""
-		if self.side == "L":
-			return "{0}|{1}|{2}|{3}|{4}".format(self.name, self.side, self.split_len, self._strand, self._chr)
+		if self._side == "L":
+			return "{0}|{1}|{2}|{3}|{4}".format(self._name, self._side, self._split_len, self._strand, self._chr)
 		else:  
 			new_side = "L"
-			new_split_len = self._read_len - int(self.split_len)
-			return "{0}|{1}|{2}|{3}|{4}".format(self.name, new_side, new_split_len, self._strand, self._chr)
+			new_split_len = self._read_len - int(self._split_len)
+			return "{0}|{1}|{2}|{3}|{4}".format(self._name, new_side, new_split_len, self._strand, self._chr)
 
 	def __eq__(self, other):
 		if type(other) is type(self):
 			return self.__dict__ == other.__dict__
 		return False
 
+	def write_sam_pairs(self, read_group_pairs, line, writer):
+		key = self.key()
+		if not key in read_group_pairs:
+			return
+		for pair in read_group_pairs[key]:
+			if self == pair[0] or self == pair[1]:
+				writer.write(line)
 
+	def add_to_read_groups(self, common_keys, read_groups):	
+		key = self.key()
+		if key in common_keys:
+			index = 0 if self._side == "L" else 1
+			group = read_groups.setdefault(key, ([],[]))
+			group[index].append(self)
+
+	def add_to_group_keys(self, group_keys):
+		group_keys[self._side].add(self.key())
+
+	def check_split_length(self, validator):
+		validator.check_split_length(self._split_len)
+
+
+class UnalignedSplitRead():
+	"""No-op split read. Builders return a singleton instance of this class when buidling a read which has not aligned."""
+
+	def format(self, delimiter=""): return None
+	
+	def distance(self, other): return None
+
+	def is_oriented(self, other): return None
+
+	def key(self): return None
+		
+	def write_sam_pairs(self, read_group_pairs, line, writer): pass
+
+	def add_to_read_groups(self, common_keys, read_groups): pass
+		
+	def add_to_group_keys(self, group_keys): pass
+
+	def check_split_length(self, validator): pass
+
+
+class ReadLengthValidationError(IdentifyPairsException):
+	pass
+
+class ReadLengthValidator():
+	"""Validates that no split_length exceeds the read_length and that the min + max split_lengths match the read_length.  Raises error if anything is amiss."""
+        def __init__(self, read_len):
+		self._read_len = read_len
+                self._min_len = 1000000
+                self._max_len = 0
+
+        def check_split_length(self, split_len):
+		if split_len > self._read_len:
+			raise ReadLengthValidationError("Length of a split read ({0}) exceeds specified overall read length ({1})".format(split_len, self._read_len))
+                self._min_len = min(split_len, self._min_len)
+                self._max_len = max(split_len, self._max_len)
+
+        def check_read_length(self):
+                computed_len = self._min_len + self._max_len
+                if (computed_len != self._read_len):
+                        raise ReadLengthValidationError("Specified read length ({0}) doesn't equal computed read length ({1})".format(self._read_len, computed_len))
+
+	
 class LegacySplitReadBuilder():
 	"""Interprets a SplitRead from a line of a non-standard text file."""
 	def __init__(self, read_len, delimiter = "\t"):
@@ -147,7 +220,6 @@ class LegacySplitReadBuilder():
 
 	def is_header(self, line):
 		return False
-
 
 
 class BowtieSplitReadBuilder():
@@ -176,15 +248,21 @@ class SamSplitReadBuilder():
 		self._read_len = read_len
 		self._delimiter = delimiter
 		self._name_re = re.compile(r"(.+)-([LR])-([\d]+)$")
+		self.UNALIGNED_READ = UnalignedSplitRead()
 		
 	def build(self, line):
 		try:
 			(name, flag, rname, position) = line.rstrip().split(self._delimiter)[:4]
+			aligned = int(flag) & 4 == 0
+			
+			if not aligned:
+				 return self.UNALIGNED_READ
+
 			m = self._name_re.match(name)
 			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
 			strand = "+" if int(flag) & 16 == 0 else "-"
-			aligned = True if int(flag) & 4 == 0 else False
-			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._read_len, aligned)
+			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._read_len)
+
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
 			
@@ -192,7 +270,7 @@ class SamSplitReadBuilder():
 		return line.startswith("@")
 
 
-def _identify_common_group_keys(split_read_builder, reader, logger, read_len):
+def _identify_common_group_keys(split_read_builder, validator, reader, logger):
 	"""Reads every line, returning the set of all read keys that appeared on both the left and right sides.  
 Each key in the result identifies a "read group"; the reads with these keys that pass other filtering criteria 
 will appear in the output file"""
@@ -201,30 +279,22 @@ will appear in the output file"""
 	gc.disable()
 	group_keys = { "L" : set(), "R" : set() }
 	count = 0
-	min_len = read_len
-	max_len = 0
+
 	for line in reader:
-		#skip headers
 		if split_read_builder.is_header(line): continue
 		count +=1
-		if count % 100000 == 1:
-			logger.log("identify_group_keys|Processing line {0}".format(count))
+		if count % 100000 == 1: logger.log("processing line {0}".format(count))
 		split_read = split_read_builder.build(line)
-		if split_read.aligned:
-			min_len = min(split_read.split_len, min_len)
-			max_len = max(split_read.split_len, max_len)
-			key = split_read.key()
-			group_keys[split_read.side].add(key)
-	logger.log("identify_group_keys|Processed {0} lines".format(count))
-	
-	logger.log("identify_group_keys|Intersecting {0} left keys with {1} right keys".format(len(group_keys["L"]), len(group_keys["R"]))) 
-	common_keys = group_keys["L"].intersection(group_keys["R"])
-	logger.log("identify_group_keys|Found {0} common keys".format(len(common_keys)))
+		split_read.add_to_group_keys(group_keys)
+		split_read.check_split_length(validator)
 
-	# test lengths
-	computed_len = min_len + max_len 
-	if (computed_len != read_len):
-		raise ValueError("Read length validation failed.  Specified length {0} doesn't equal computed length {1}".format(read_len, computed_len))
+	logger.log("processed {0} lines".format(count))
+	
+	logger.log("intersecting {0} left keys with {1} right keys".format(len(group_keys["L"]), len(group_keys["R"]))) 
+	common_keys = group_keys["L"].intersection(group_keys["R"])
+	logger.log("found {0} common keys".format(len(common_keys)))
+
+	validator.check_read_length()
 
 	gc.enable()
 	return common_keys
@@ -233,56 +303,45 @@ will appear in the output file"""
 def _build_read_groups(common_keys, split_read_builder, reader, logger):
 	"""Reads every line, returning a hash of read groups; each read group is a tuple of matching left and right reads. Only reads with key in common keys are included."""
 
-	#Cirdumvents a gc bug; see modifications.
+	#Circumvents a gc bug; see modifications.
 	gc.disable()
-
-	def _add(d, key, split_read):
-        	index = 0 if split_read.side == "L" else 1
-        	group = d.setdefault(key, ([],[]))
-        	group[index].append(split_read)
 
 	read_groups = {}
 	count = 0
 	for line in reader:
-		#skip headers
 		if split_read_builder.is_header(line): continue
 		count += 1
-		if count % 100000 == 1:
-			logger.log("build_read_groups|processing line {0}".format(count))
+		if count % 100000 == 1: logger.log("processing line {0}".format(count))
 		split_read = split_read_builder.build(line)
-		if split_read.aligned:
-			key = split_read.key()
-			if key in common_keys:
-				_add(read_groups, key, split_read)
-			
-	logger.log("build_read_groups|done:processed {0} lines".format(count))
+		split_read.add_to_read_groups(common_keys, read_groups)
+
+	logger.log("processed {0} lines".format(count))
 
 	gc.enable()
 	return read_groups
 
 
 def _build_pairs_from_groups(read_groups, logger):
-	"""For each group, generate the cartesian product of left and right pairs, returning a list of (left, right, distance) tuples."""
+	"""For each group, generate the cartesian product of left and right pairs, returning a dict of split_read_key, list of (left, right, distance) tuples."""
 	gc.disable()
 	count = 0
 	pairs = {}
 	for key, read_group in read_groups.iteritems():
 		pair = pairs.setdefault(key, [])
 		count += 1
-		if count % 100000 == 1:
-			logger.log("build_pairs_from_groups|processing read_group {0}".format(count))
+		if count % 100000 == 1: logger.log("processing read_group {0}".format(count))
 		left_reads = read_group[0]
 		right_reads = read_group[1]
 		for left_read in left_reads:
 			for right_read in right_reads:
-				distance = left_read.distance(right_read)
-				pair.append((left_read, right_read, distance))
-	logger.log("build_pairs_from_groups complete|processed {0} read_groups".format(count))
+				pair.append((left_read, right_read))
+	logger.log("processed {0} read_groups".format(count))
 	gc.enable()
 	return pairs
 
 
-def _filter_on_distance(all_read_group_pairs, min_distance, max_distance, logger):
+def _filter_pairs(all_read_group_pairs, filter, logger):
+	"""Iterates over all pairs in the read group dict applying the specified filter and returning a new dict of the filtered results."""
 	filtered_pairs = {}
 	count_total = 0
 	count_included = 0
@@ -290,34 +349,32 @@ def _filter_on_distance(all_read_group_pairs, min_distance, max_distance, logger
 		pair_list = []
 		for pair in pairs:
 			count_total += 1
-			distance = pair[2]
-			if distance >= min_distance and distance <= max_distance:
+			if filter(pair[0], pair[1]):				
 		 		pair_list.append(pair)
 				count_included += 1
 		if pair_list:
 			filtered_pairs[key]=pair_list
 
-	logger.log("filter_on_distance complete| {0} pairs processed, {1} pairs passed".format(count_total, count_included))
+	logger.log("{0} pairs processed, {1} pairs passed".format(count_total, count_included))
 	return filtered_pairs
 
 
-def _filter_on_orientation(all_read_group_pairs, logger):
-        filtered_pairs = {}
-        count_total = 0
-        count_included = 0
-        for key, pairs in all_read_group_pairs.iteritems():
-                pair_list = []
-                for pair in pairs:
-                        count_total += 1
-                        if pair[0].is_oriented(pair[1]):
-                                pair_list.append(pair)
-                                count_included += 1
-                if pair_list:
-                        filtered_pairs[key]=pair_list
+def _distance_filter(min_distance, max_distance):
+	def filter_pair(read1, read2):
+		distance = read1.distance(read2)
+                return distance >= min_distance and distance <= max_distance;
+	return filter_pair
 
-        logger.log("filter_on_orientation complete| {0} pairs processed, {1} pairs passed".format(count_total, count_included))
-        return filtered_pairs
+def _orientation_filter(read1, read2):
+	return read1.is_oriented(read2)
 
+def _composite_filter(filter_list):
+	def filter_pair(read1, read2):
+		include = True
+		for filter in filter_list:
+			include = include and filter(read1, read2)
+		return include
+	return filter_pair
 
 def _write_rsw_pairs(all_read_group_pairs, writer, logger, delimiter="\t"):
         count = 0
@@ -326,13 +383,13 @@ def _write_rsw_pairs(all_read_group_pairs, writer, logger, delimiter="\t"):
                 	count += 1
                 	left_read = pair[0].format(delimiter)
                 	right_read = pair[1].format(delimiter)
-                	distance = str(pair[2])
+                	distance = str(pair[0].distance(pair[1]))
                 	writer.write(delimiter.join([left_read, right_read, distance]))
                 	writer.write("\n")
                 	if count % 100000 == 1:
-                        	logger.log("write_rsw_pairs|processing pair {0}".format(count))
+                        	logger.log("processing pair {0}".format(count))
 
-        logger.log("write_rsw_pairs|processed {0} pairs".format(count))
+        logger.log("processed {0} pairs".format(count))
 
 
 def _write_sam_pairs(read_group_pairs, reader, builder, writer, logger):
@@ -343,29 +400,26 @@ def _write_sam_pairs(read_group_pairs, reader, builder, writer, logger):
 			writer.write(line)
 		else:
 			split_read = builder.build(line)
-			if split_read.aligned and split_read.key() in read_group_pairs:
-				for pair in read_group_pairs[split_read.key()]:
-					if split_read == pair[0] or split_read == pair[1]:
-						writer.write(line)
+			split_read.write_sam_pairs(read_group_pairs, line, writer)
 
 		if count % 100000 == 1:
-				logger.log("write_sam_pairs|processing line {0}".format(count))
+				logger.log("processing line {0}".format(count))
 
-	logger.log("write_sam_pairs|processed {0} lines".format(count))
+	logger.log("processed {0} lines".format(count))
 	
 	
 def main(read_len, input_file_name, output_file_name, sam_output_file_name, min_dist, max_dist):
 	
-	builder = SamSplitReadBuilder(read_len)
 	logger = StdErrLogger(True)
-	
-	logger.log("process_file|read_len:{0}, input_file_name:{1}, output_file_name:{2}, sam_output_file_name:{3}, minimum_distance:{4}, maximum_distance:{5}".format(read_len, \
+	logger.log("read_len:{0}, input_file_name:{1}, output_file_name:{2}, sam_output_file_name:{3}, minimum_distance:{4}, maximum_distance:{5}".format(read_len, \
 				input_file_name, output_file_name, sam_output_file_name, min_dist, max_dist))
-	logger.log("process_file|{0} begins".format(input_file_name))
+	logger.log("{0} begins".format(input_file_name))
 	
+	builder = SamSplitReadBuilder(read_len)
+	validator = ReadLengthValidator(read_len)
 	
 	reader = open(input_file_name, "r")
-	common_keys = _identify_common_group_keys(builder, reader, logger, read_len)
+	common_keys = _identify_common_group_keys(builder, validator, reader, logger)
 	reader.close()
 
 	reader = open(input_file_name, "r")
@@ -373,9 +427,10 @@ def main(read_len, input_file_name, output_file_name, sam_output_file_name, min_
 	reader.close()	
 
 	read_group_pairs = _build_pairs_from_groups(read_groups, logger)
-	read_group_pairs = _filter_on_distance(read_group_pairs, min_dist, max_dist, logger)
-	read_group_pairs = _filter_on_orientation(read_group_pairs, logger)
 
+	filter = _composite_filter([_distance_filter(min_dist, max_dist), _orientation_filter])
+	read_group_pairs = _filter_pairs(read_group_pairs, filter, logger)
+	 
 	writer = open(output_file_name, "w")	
 	_write_rsw_pairs(read_group_pairs, writer, logger)
 	writer.close()
@@ -386,8 +441,8 @@ def main(read_len, input_file_name, output_file_name, sam_output_file_name, min_
 	writer.close()
 	reader.close()
 
-	logger.log("process_file|output written to {0}".format(output_file_name))
-	logger.log("process_file|{0} complete".format(input_file_name))
+	logger.log("output written to {0}".format(output_file_name))
+	logger.log("{0} complete".format(input_file_name))
 	
 
 if __name__ == "__main__":
