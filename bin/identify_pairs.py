@@ -99,7 +99,7 @@ class StdErrLogger():
 
 class SplitRead():
 	"""Basic data structure for an individual read"""
-	def __init__(self, name, side, split_len, strand, chr, position, matches, read_len):
+	def __init__(self, name, side, split_len, strand, chr, position, matches, read_len, original_name = ""):
 		self._name = name
 		self._side = side
 		self._split_len = split_len
@@ -108,6 +108,7 @@ class SplitRead():
 		self._position = position
 		self._matches = matches
 		self._read_len = read_len
+		self._original_name = original_name
 
 	
 	def format(self, delimiter = "\t"):
@@ -141,13 +142,37 @@ strand  would be part of the same read group.  For this reason, the key is alway
 			return self.__dict__ == other.__dict__
 		return False
 
-	def write_sam_pairs(self, read_group_pairs, line, writer):
+	def write_sam_pairs(self, read_group_pairs, line, writer, delimiter = "\t"):
 		key = self.key()
 		if not key in read_group_pairs:
 			return
+		new_name = key.split()
+		bits = line.split(delimiter)
+		(chrom, mapq, cigar, pos, seq, qual, extra) = (bits[2], bits[4], bits[5], bits[7], bits[9], bits[10], bits[11:])
+		extras = " ".join(extra)
+		flag = pnext = tlen = 0
+		lname = self._original_name
 		for pair in read_group_pairs[key]:
-			if self == pair[0] or self == pair[1]:
-				writer.write(line)
+			if self == pair[0]:
+				pnext = pair[1]._position
+				tlen = pnext-self._position
+				if self._position < pnext:
+					flag = 99
+				else:
+					flag = 83
+			elif self == pair[1]:
+				pnext = pair[0]._position
+				tlen = pnext-self._position
+				lname = pair[0]._original_name
+				if self._position > pnext:
+					flag = 147
+				else:
+					flag = 163
+			else:
+				continue	
+			outstring = delimiter.join([lname, str(flag), chrom, str(self._position), mapq, cigar, "=", str(pnext), str(tlen), seq, qual, extras])
+			writer.write(outstring)
+				
 
 	def add_to_read_groups(self, common_keys, read_groups):	
 		key = self.key()
@@ -202,7 +227,7 @@ class ReadLengthValidator():
         def check_read_length(self):
                 computed_len = self._min_len + self._max_len
                 if (computed_len != self._read_len):
-                        raise ReadLengthValidationError("Specified read length ({0}) doesn't equal computed read length ({1})".format(self._read_len, computed_len))
+                        raise ReadLengthValidationError("Specified read length ({0}) doesn't equal computed read length ({1}) ({2}-{3})".format(self._read_len, computed_len, self._min_len, self._max_len))
 
 	
 class LegacySplitReadBuilder():
@@ -261,7 +286,7 @@ class SamSplitReadBuilder():
 			m = self._name_re.match(name)
 			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
 			strand = "+" if int(flag) & 16 == 0 else "-"
-			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._read_len)
+			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._read_len, name)
 
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
@@ -392,7 +417,7 @@ def _write_rsw_pairs(all_read_group_pairs, writer, logger, delimiter="\t"):
         logger.log("processed {0} pairs".format(count))
 
 
-def _write_sam_pairs(read_group_pairs, reader, builder, writer, logger):
+def _write_sam_pairs(read_group_pairs, reader, builder, writer, logger, delimiter="\t"):
 	count = 0
 	for line in reader:
 		count += 1
