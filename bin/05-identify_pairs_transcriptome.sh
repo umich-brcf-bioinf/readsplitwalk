@@ -1,15 +1,16 @@
 #!/bin/bash
 
 SAMPLE_NAME=$1
-PROCESSORS=2
+READ_LENGTH=$2
 
-REFERENCE_INDEX_LOCATION=/ccmb/BioinfCore/SoftwareDev/bowtie1/mm_GRCm38_cDNA/mm_GRCm38_cDNA
+MIN_DISTANCE=2
+MAX_DISTANCE=39999
 RSW_HOME=`dirname $0`/../
 SCRIPT_NAME=`basename $0 .sh`
 mkdir -p logs
 
-INPUT_FILE=${SAMPLE_NAME}.fastq
-OUTPUT_FILE=${SAMPLE_NAME}.${SCRIPT_NAME}
+INPUT_FILE=${SAMPLE_NAME}.04-bowtie_align_splits_to_transcriptome_1mm.sam
+OUTPUT_FILE=${SAMPLE_NAME}.${SCRIPT_NAME}.rsw
 LOG_FILE=logs/${SAMPLE_NAME}.${SCRIPT_NAME}.log
 
 if [ ! -f ${INPUT_FILE} ]; then
@@ -21,8 +22,8 @@ fi
 echo $0 $SAMPLE_NAME
 echo teeing to $LOG_FILE
 date
-time bowtie -t -v 2 -k 11 -m 10 --best -p ${PROCESSORS} ${REFERENCE_INDEX_LOCATION} -q ${INPUT_FILE} --un ${OUTPUT_FILE}.fastq ${OUTPUT_FILE}.tmp.bowtie
-chmod g+rw ${LOG_FILE} ${OUTPUT_FILE}*
+time python ${RSW_HOME}/bin/identify_pairs.py ${INPUT_FILE} ${OUTPUT_FILE} ${READ_LENGTH} ${MIN_DISTANCE} ${MAX_DISTANCE} 
+chmod g+rw ${LOG_FILE} ${OUTPUT_FILE}
 date
 echo done.
 ) 2>&1 | tee ${LOG_FILE}

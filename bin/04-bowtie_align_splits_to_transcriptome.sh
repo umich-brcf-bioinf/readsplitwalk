@@ -4,7 +4,7 @@ SAMPLE_NAME=$1
 PROCESSORS=2
  
 SCRIPT_NAME=`basename $0 .sh`
-REFERENCE_GENOME_INDEX_LOCATION=/ccmb/CoreBA/BioinfCore/Common/DATA/BowtieData/mm9/bowtie1/mm9
+REFERENCE_GENOME_INDEX_LOCATION=/ccmb/BioinfCore/SoftwareDev/bowtie1/mm_GRCm38_cDNA/mm_GRCm38_cDNA
 mkdir -p logs
 
 INPUT_FILE=${SAMPLE_NAME}.03-split_reads.fastq

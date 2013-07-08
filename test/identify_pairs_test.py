@@ -81,11 +81,16 @@ class SplitReadTest(unittest.TestCase):
 		sr = SplitRead(**params)
 		self.assertEqual("foo~L~10~strand~chr~100~5", sr.format("~"))	
 
-	def test_distance(self):
-		srL = SplitRead(**initParams({'position':25}))
-		srR = SplitRead(**initParams({'position':100}))
-		self.assertEqual(75, srL.distance(srR))
-		self.assertEqual(75, srR.distance(srL))
+	def test_gap_distance(self):
+		srL1 = SplitRead(**initParams({'position':25, 'split_len':60, 'strand':"+", 'side':"L", 'original_read_len':200}))
+		srR1 = SplitRead(**initParams({'position':100, 'split_len':40, 'strand':"+", 'side':"R", 'original_read_len':200}))
+		self.assertEqual(15, srL1.gap_distance(srR1))
+		self.assertEqual(15, srR1.gap_distance(srL1))
+		
+		srL2 = SplitRead(**initParams({'position':100, 'split_len':40, 'strand':"-", 'side':"L", 'original_read_len':200}))
+		srR2 = SplitRead(**initParams({'position':55, 'split_len':30, 'strand':"-", 'side':"R", 'original_read_len':200}))
+		self.assertEqual(15, srL2.gap_distance(srR2))
+		self.assertEqual(15, srR2.gap_distance(srL2))
 		
 	def test_key_leftKeyPassesThrough(self):
 		read_len = 30
@@ -139,6 +144,13 @@ class SplitReadTest(unittest.TestCase):
 		self.assertEqual(False, left.is_oriented(left2))
 		self.assertEqual(False, left2.is_oriented(left))
 
+	def test_left_name(self):
+		left = SplitRead(**initParams({'name':'readA', 'side':"L", 'split_len': 10, 'original_read_len': 100}))
+		right = SplitRead(**initParams({'name':'readA', 'side':"R", 'split_len': 90, 'original_read_len': 100}))
+		self.assertEqual("readA-L-10", left.left_name())
+		self.assertEqual("readA-L-10", right.left_name())
+		
+
 	def test_write_sam_pairs_skipsOrphanedLines(self):
 		writer = MockWriter()
 		
@@ -163,13 +175,13 @@ class SplitReadTest(unittest.TestCase):
 		read_group_pairs = {read_group_key:[(leftA, rightA, 5)]}
 
 		split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 999}))
-		split_read_from_file.write_sam_pairs(read_group_pairs, "line", writer)
+		split_read_from_file.write_sam_pairs(read_group_pairs, "line\t"*12, writer)
 		
 		self.assertEqual(0, len(writer.lines()))
 		
 	def test_write_sam_pairs_writesLineForEachPairParticipation(self):
 		writer = MockWriter()
-		
+		stub_line = "readA\t"*12
 		leftA5 = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5}))
 		rightA10 = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 10}))
 		rightA15 = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 15}))
@@ -178,12 +190,50 @@ class SplitReadTest(unittest.TestCase):
 		read_group_pairs = {read_group_key:[(leftA5, rightA10, 5), (leftA5, rightA15, 10)]}
 
 		split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5}))
-		split_read_from_file.write_sam_pairs(read_group_pairs, "line\n", writer)
+		split_read_from_file.write_sam_pairs(read_group_pairs, stub_line+"\n", writer)
 		
 		actual_lines = writer.lines()
 		self.assertEqual(2, len(actual_lines))
-		self.assertEqual("line", actual_lines[0])
-		self.assertEqual("line", actual_lines[1])
+
+	def test_write_sam_pairs_writesPositiveStrandSamLines(self):
+		writer = MockWriter()
+		input_line = "readA	147	chr12	5	255	42M	*	0	0	TCACC	DDDDD	XA:i:0"
+		left_read = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5000, 'split_len':15, 'original_read_len':100}))
+		right_read = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 5200, 'split_len':85, 'original_read_len':100}))
+		
+		read_group_key = left_read.key()
+		read_group_pairs = {read_group_key:[(left_read, right_read)]}
+
+		first_split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5000, 'split_len':15, 'original_read_len':100}))
+		first_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer)
+		second_split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 5200, 'split_len':85, 'original_read_len':100}))
+		second_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer)
+		
+		actual_lines = writer.lines()
+		self.assertEqual(2, len(actual_lines))
+		self.assertEqual("readA-L-15	67	chr12	5000	255	42M	=	5200	200	TCACC	DDDDD	XA:i:0", actual_lines[0])
+		self.assertEqual("readA-L-15	131	chr12	5200	255	42M	=	5000	-200	TCACC	DDDDD	XA:i:0", actual_lines[1])
+
+	def test_write_sam_pairs_writesNegativeStrandSamLines(self):
+		writer = MockWriter()
+		input_line = "readA	147	chr12	5	255	42M	*	0	0	TCACC	DDDDD	XA:i:0"
+		left_read = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5200, 'split_len':15, 'original_read_len':100}))
+		right_read = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 5000, 'split_len':85, 'original_read_len':100}))
+		
+		read_group_key = left_read.key()
+		read_group_pairs = {read_group_key:[(left_read, right_read)]}
+
+		first_split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5200, 'split_len':15, 'original_read_len':100}))
+		first_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer)
+		second_split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 5000, 'split_len':85, 'original_read_len':100}))
+		second_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer)
+		
+		actual_lines = writer.lines()
+		self.assertEqual(2, len(actual_lines))
+		self.assertEqual("readA-L-15	115	chr12	5200	255	42M	=	5000	-200	TCACC	DDDDD	XA:i:0", actual_lines[0])
+		self.assertEqual("readA-L-15	147	chr12	5000	255	42M	=	5200	200	TCACC	DDDDD	XA:i:0", actual_lines[1])
+
+
 
 	def test_add_to_read_groups_doesNothingWhenNotInCommonKeys(self):
 		readA = SplitRead(**initParams({'name':'readA'}))
@@ -196,9 +246,9 @@ class SplitReadTest(unittest.TestCase):
 		self.assertEqual(0, len(read_groups))
 
 	def test_add_to_read_groups_addsToCorrectSide(self):
-		left10 = SplitRead(**initParams({'name':'readA', 'side':"L", 'position':10, 'split_len':40, 'read_len':100}))
-		left15 = SplitRead(**initParams({'name':'readA', 'side':"L", 'position':15, 'split_len':40, 'read_len':100}))
-		right30 = SplitRead(**initParams({'name':'readA', 'side':"R", 'position':30, 'split_len':60, 'read_len':100}))
+		left10 = SplitRead(**initParams({'name':'readA', 'side':"L", 'position':10, 'split_len':40, 'original_read_len':100}))
+		left15 = SplitRead(**initParams({'name':'readA', 'side':"L", 'position':15, 'split_len':40, 'original_read_len':100}))
+		right30 = SplitRead(**initParams({'name':'readA', 'side':"R", 'position':30, 'split_len':60, 'original_read_len':100}))
 		read_group_key = left10.key()
 		common_keys = set([read_group_key])
 		read_groups = {}
@@ -471,7 +521,7 @@ class MockSplitRead():
 	def format(self, delimiter="\t"):
 		return self._format
 		
-	def distance(self, distance):
+	def gap_distance(self, distance):
 		return self._distance
 		
 	def key(self):
@@ -513,7 +563,7 @@ class MockValidator():
 	def check_read_length(self): pass
 
 def initParams(updates):
-	params = {'name':"name", 'side':"L", 'split_len':10, 'strand':"strand", 'chr':"chr", 'position':100, 'matches':5, 'read_len': 33} 
+	params = {'name':"name", 'side':"L", 'split_len':10, 'strand':"+", 'chr':"chr", 'position':100, 'matches':5, 'original_read_len': 33} 
 	params.update(updates);
 	return params
 

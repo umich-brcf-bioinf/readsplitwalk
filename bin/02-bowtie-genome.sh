@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SAMPLE_NAME=$1
-
+PROCESSORS=2
 
 REFERENCE_INDEX_LOCATION=/ccmb/CoreBA/BioinfCore/Common/DATA/BowtieData/mm9/bowtie1/mm9
 MAX_DISTANCE=39999
@@ -22,7 +22,7 @@ fi
 echo $0 $SAMPLE_NAME
 echo teeing to $LOG_FILE
 date
-time bowtie -t -v 0 -k 11 -m 10 --best ${REFERENCE_INDEX_LOCATION} -q ${INPUT_FILE} --un ${OUTPUT_FILE}.fastq ${OUTPUT_FILE}.tmp.bowtie
+time bowtie -t -v 2 -k 11 -m 10 --best -p ${PROCESSORS} ${REFERENCE_INDEX_LOCATION} -q ${INPUT_FILE} --un ${OUTPUT_FILE}.fastq ${OUTPUT_FILE}.tmp.bowtie
 chmod g+rw ${LOG_FILE} ${OUTPUT_FILE}*
 date
 echo done.

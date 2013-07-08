@@ -54,6 +54,13 @@ refactoring methods into SplitRead (write_sam_pairs, add_to_read_groups, add_to_
 simplified testing, and (because we now avoid creating a SplitRead for unaligned reads), improved performance.
 Refatored how filtering works to use a filter chain/composite filter pattern.
 Minor cosmetic adjustments to Logger.
+
+7/01/2013 - pulintz
+Added logic to SplitRead.write_sam_pairs to export split reads as paired reads, which permits IGV to use its paired-read display functionality.  Added an attribute
+to SplitRead called _original_name to facilitate this.
+
+7/8/2013 - cgates/pulintz
+Renamed SplitRead.distance() to gap_distance and revised to calculate gap distance correctly.
 """
 
 import datetime
@@ -99,7 +106,7 @@ class StdErrLogger():
 
 class SplitRead():
 	"""Basic data structure for an individual read"""
-	def __init__(self, name, side, split_len, strand, chr, position, matches, read_len, original_name = ""):
+	def __init__(self, name, side, split_len, strand, chr, position, matches, original_read_len):
 		self._name = name
 		self._side = side
 		self._split_len = split_len
@@ -107,17 +114,16 @@ class SplitRead():
 		self._chr = chr
 		self._position = position
 		self._matches = matches
-		self._read_len = read_len
-		self._original_name = original_name
+		self._original_read_len = original_read_len
 
-	
 	def format(self, delimiter = "\t"):
 		"""Returns a formatted string that accepts a field delimiter"""
 		return delimiter.join([self._name, self._side, str(self._split_len), self._strand, self._chr, str(self._position), str(self._matches)])
-		
-	def distance(self, other):
-		"""Absolute distance between this position and the otherRead"""
-		return abs(self._position - other._position)
+
+	def gap_distance(self, other):
+		"""Returns distance between the end of one read and the beginning of the other.  (Assumes all alignment positions are leftmost coordinate of positive strand.)"""
+		(leftmost_read, rightmost_read) = (self, other) if self._position < other._position else (other, self)
+		return rightmost_read._position - (leftmost_read._position + leftmost_read._split_len)
 
 	def is_oriented(self, other):
 		"""Returns true if other is on different side, same strand, and positioned correctly relative to self"""
@@ -134,8 +140,17 @@ strand  would be part of the same read group.  For this reason, the key is alway
 			return "{0}|{1}|{2}|{3}|{4}".format(self._name, self._side, self._split_len, self._strand, self._chr)
 		else:  
 			new_side = "L"
-			new_split_len = self._read_len - int(self._split_len)
+			new_split_len = self._original_read_len - int(self._split_len)
 			return "{0}|{1}|{2}|{3}|{4}".format(self._name, new_side, new_split_len, self._strand, self._chr)
+
+	def left_name(self):
+		"""Returns the left handed name."""
+		if self._side == "L":
+			new_split_len = self._split_len
+		else:
+			new_split_len = self._original_read_len - int(self._split_len)
+		
+		return "{0}-{1}-{2}".format(self._name, "L", new_split_len)
 
 	def __eq__(self, other):
 		if type(other) is type(self):
@@ -146,31 +161,28 @@ strand  would be part of the same read group.  For this reason, the key is alway
 		key = self.key()
 		if not key in read_group_pairs:
 			return
-		new_name = key.split()
 		bits = line.split(delimiter)
 		(chrom, mapq, cigar, pos, seq, qual, extra) = (bits[2], bits[4], bits[5], bits[7], bits[9], bits[10], bits[11:])
 		extras = " ".join(extra)
 		flag = pnext = tlen = 0
-		lname = self._original_name
 		for pair in read_group_pairs[key]:
 			if self == pair[0]:
 				pnext = pair[1]._position
 				tlen = pnext-self._position
 				if self._position < pnext:
-					flag = 99
+					flag = 67
 				else:
-					flag = 83
+					flag = 115
 			elif self == pair[1]:
 				pnext = pair[0]._position
 				tlen = pnext-self._position
-				lname = pair[0]._original_name
 				if self._position > pnext:
-					flag = 147
+					flag = 131
 				else:
-					flag = 163
+					flag = 147
 			else:
 				continue	
-			outstring = delimiter.join([lname, str(flag), chrom, str(self._position), mapq, cigar, "=", str(pnext), str(tlen), seq, qual, extras])
+			outstring = delimiter.join([self.left_name(), str(flag), chrom, str(self._position), mapq, cigar, "=", str(pnext), str(tlen), seq, qual, extras])
 			writer.write(outstring)
 				
 
@@ -213,33 +225,33 @@ class ReadLengthValidationError(IdentifyPairsException):
 
 class ReadLengthValidator():
 	"""Validates that no split_length exceeds the read_length and that the min + max split_lengths match the read_length.  Raises error if anything is amiss."""
-        def __init__(self, read_len):
-		self._read_len = read_len
+        def __init__(self, original_read_len):
+		self._original_read_len = original_read_len
                 self._min_len = 1000000
                 self._max_len = 0
 
         def check_split_length(self, split_len):
-		if split_len > self._read_len:
-			raise ReadLengthValidationError("Length of a split read ({0}) exceeds specified overall read length ({1})".format(split_len, self._read_len))
+		if split_len > self._original_read_len:
+			raise ReadLengthValidationError("Length of a split read ({0}) exceeds specified overall read length ({1})".format(split_len, self._original_read_len))
                 self._min_len = min(split_len, self._min_len)
                 self._max_len = max(split_len, self._max_len)
 
         def check_read_length(self):
                 computed_len = self._min_len + self._max_len
-                if (computed_len != self._read_len):
-                        raise ReadLengthValidationError("Specified read length ({0}) doesn't equal computed read length ({1}) ({2}-{3})".format(self._read_len, computed_len, self._min_len, self._max_len))
+                if (computed_len != self._original_read_len):
+                        raise ReadLengthValidationError("Specified read length ({0}) doesn't equal computed read length ({1}) ({2}-{3})".format(self._original_read_len, computed_len, self._min_len, self._max_len))
 
 	
 class LegacySplitReadBuilder():
 	"""Interprets a SplitRead from a line of a non-standard text file."""
-	def __init__(self, read_len, delimiter = "\t"):
-		self._read_len = read_len
+	def __init__(self, original_read_len, delimiter = "\t"):
+		self._original_read_len = original_read_len
 		self._delimiter = delimiter
 	
 	def build(self, line):
 		try:
 			(name, side, split_len, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter)[:9]
-			return SplitRead(name, side, int(split_len), strand, chr, int(position), int(matches), self._read_len)
+			return SplitRead(name, side, int(split_len), strand, chr, int(position), int(matches), self._original_read_len)
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
 
@@ -249,8 +261,8 @@ class LegacySplitReadBuilder():
 
 class BowtieSplitReadBuilder():
 	"""Interprets SplitRead from a line of a bowtie alignment file."""
-	def __init__(self, read_len, delimiter = "\t"):
-		self._read_len = read_len
+	def __init__(self, original_read_len, delimiter = "\t"):
+		self._original_read_len = original_read_len
 		self._delimiter = delimiter
 		self._name_re = re.compile(r"(.+)-([LR])-([\d]+)$")
 		
@@ -259,7 +271,7 @@ class BowtieSplitReadBuilder():
 			(name, strand, chr, position, seq, quality, matches) = line.rstrip().split(self._delimiter)[:7]
 			m = self._name_re.match(name)
 			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
-			return SplitRead(subname, side, int(split_len), strand, chr, int(position), int(matches), self._read_len)
+			return SplitRead(subname, side, int(split_len), strand, chr, int(position), int(matches), self._original_read_len)
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
 
@@ -269,8 +281,8 @@ class BowtieSplitReadBuilder():
 
 class SamSplitReadBuilder():
 	"""Interprets SplitRead from a line of a SAM file."""
-	def __init__(self, read_len, delimiter = "\t"):
-		self._read_len = read_len
+	def __init__(self, original_read_len, delimiter = "\t"):
+		self._original_read_len = original_read_len
 		self._delimiter = delimiter
 		self._name_re = re.compile(r"(.+)-([LR])-([\d]+)$")
 		self.UNALIGNED_READ = UnalignedSplitRead()
@@ -286,7 +298,7 @@ class SamSplitReadBuilder():
 			m = self._name_re.match(name)
 			(subname, side, split_len) = (m.group(1), m.group(2), m.group(3))
 			strand = "+" if int(flag) & 16 == 0 else "-"
-			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._read_len, name)
+			return SplitRead(subname, side, int(split_len), strand, rname, int(position), None, self._original_read_len)
 
 		except ValueError as e:
 			raise SplitReadParseError(line, e)
@@ -386,7 +398,7 @@ def _filter_pairs(all_read_group_pairs, filter, logger):
 
 def _distance_filter(min_distance, max_distance):
 	def filter_pair(read1, read2):
-		distance = read1.distance(read2)
+		distance = read1.gap_distance(read2)
                 return distance >= min_distance and distance <= max_distance;
 	return filter_pair
 
@@ -408,7 +420,7 @@ def _write_rsw_pairs(all_read_group_pairs, writer, logger, delimiter="\t"):
                 	count += 1
                 	left_read = pair[0].format(delimiter)
                 	right_read = pair[1].format(delimiter)
-                	distance = str(pair[0].distance(pair[1]))
+                	distance = str(pair[0].gap_distance(pair[1]))
                 	writer.write(delimiter.join([left_read, right_read, distance]))
                 	writer.write("\n")
                 	if count % 100000 == 1:
@@ -433,15 +445,15 @@ def _write_sam_pairs(read_group_pairs, reader, builder, writer, logger, delimite
 	logger.log("processed {0} lines".format(count))
 	
 	
-def main(read_len, input_file_name, output_file_name, sam_output_file_name, min_dist, max_dist):
+def main(original_read_len, input_file_name, output_file_name, sam_output_file_name, min_dist, max_dist):
 	
 	logger = StdErrLogger(True)
 	logger.log("read_len:{0}, input_file_name:{1}, output_file_name:{2}, sam_output_file_name:{3}, minimum_distance:{4}, maximum_distance:{5}".format(read_len, \
 				input_file_name, output_file_name, sam_output_file_name, min_dist, max_dist))
 	logger.log("{0} begins".format(input_file_name))
 	
-	builder = SamSplitReadBuilder(read_len)
-	validator = ReadLengthValidator(read_len)
+	builder = SamSplitReadBuilder(original_read_len)
+	validator = ReadLengthValidator(original_read_len)
 	
 	reader = open(input_file_name, "r")
 	common_keys = _identify_common_group_keys(builder, validator, reader, logger)
