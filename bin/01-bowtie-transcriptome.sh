@@ -21,7 +21,7 @@ fi
 echo $0 $SAMPLE_NAME
 echo teeing to $LOG_FILE
 date
-time bowtie -t -v 2 -k 11 -m 10 --best -p ${PROCESSORS} ${REFERENCE_INDEX_LOCATION} -q ${INPUT_FILE} --un ${OUTPUT_FILE}.fastq ${OUTPUT_FILE}.tmp.bowtie
+time bowtie -t -v 2 -k 11 -m 10 --sam --best -p ${PROCESSORS} ${REFERENCE_INDEX_LOCATION} -q ${INPUT_FILE} --un ${OUTPUT_FILE}.fastq ${OUTPUT_FILE}.tmp.sam
 chmod g+rw ${LOG_FILE} ${OUTPUT_FILE}*
 date
 echo done.
