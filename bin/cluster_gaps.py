@@ -79,7 +79,7 @@ def main(sam_file_name, original_read_len, gap_file_name, delimiter):
  	logger = StdErrLogger(verbose=True)
 	logger.log(" ".join(sys.argv), verbose=False)
 	header_lines = [str(datetime.datetime.today()), " ".join(sys.argv)] 
-	gap_utility = BedUtility(original_read_len, delimiter)
+	gap_utility = GapUtility(original_read_len, delimiter)
 	
 	logger.log("parsing sam file")
 	sam_file = open(sam_file_name,"r")
