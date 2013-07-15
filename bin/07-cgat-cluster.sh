@@ -1,11 +1,13 @@
 #!/bin/bash
 
 BIN_DIR="`dirname $0`"
+SCRIPT_NAME="`basename $0 .sh`"
 ORIGINAL_READ_LEN=$1
+SUFFIX=06-postprocess.sam
 
 function cluster {
 	SAM=$1
-	OUTPUT_BASE_NAME=$2
+	OUTPUT_BASE_NAME=${2}.${SCRIPT_NAME}
 	echo Clustering $SAM ...
 	"${BIN_DIR}"/cluster_gaps.py ${SAM} ${ORIGINAL_READ_LEN} ${OUTPUT_BASE_NAME}.gaps.tmp
 	bedtools cluster -i ${OUTPUT_BASE_NAME}.gaps.tmp > ${OUTPUT_BASE_NAME}.cluster.tmp
@@ -16,18 +18,18 @@ function cluster {
 }
 
 
-cluster Sample_21786_ALL.06-postprocess.sam Sample_21786_ALL.07-cluster
-cluster Sample_21787_ALL.06-postprocess.sam Sample_21787_ALL.07-cluster
+cluster Sample_21786_ALL.${SUFFIX} Sample_21786_ALL
+cluster Sample_21787_ALL.${SUFFIX} Sample_21787_ALL
 exit 1
-cluster Sample_21788_ALL.06-postprocess.sam Sample_21788_ALL.07-cluster
-cluster Sample_21789_ALL.06-postprocess.sam Sample_21789_ALL.07-cluster
-cluster Sample_21790_ALL.06-postprocess.sam Sample_21790_ALL.07-cluster
-cluster Sample_21791_ALL.06-postprocess.sam Sample_21791_ALL.07-cluster
-cluster Sample_21792_ALL.06-postprocess.sam Sample_21792_ALL.07-cluster
-cluster Sample_21793_ALL.06-postprocess.sam Sample_21793_ALL.07-cluster
-cluster Sample_21794_ALL.06-postprocess.sam Sample_21794_ALL.07-cluster
-cluster Sample_21795_ALL.06-postprocess.sam Sample_21795_ALL.07-cluster
-cluster Sample_21796_ALL.06-postprocess.sam Sample_21796_ALL.07-cluster
-cluster Sample_21797_ALL.06-postprocess.sam Sample_21797_ALL.07-cluster
+cluster Sample_21788_ALL.${SUFFIX} Sample_21788_ALL
+cluster Sample_21789_ALL.${SUFFIX} Sample_21789_ALL
+cluster Sample_21790_ALL.${SUFFIX} Sample_21790_ALL
+cluster Sample_21791_ALL.${SUFFIX} Sample_21791_ALL
+cluster Sample_21792_ALL.${SUFFIX} Sample_21792_ALL
+cluster Sample_21793_ALL.${SUFFIX} Sample_21793_ALL
+cluster Sample_21794_ALL.${SUFFIX} Sample_21794_ALL
+cluster Sample_21795_ALL.${SUFFIX} Sample_21795_ALL
+cluster Sample_21796_ALL.${SUFFIX} Sample_21796_ALL
+cluster Sample_21797_ALL.${SUFFIX} Sample_21797_ALL
 
 echo Done.
