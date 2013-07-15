@@ -69,8 +69,12 @@ class Gap():
 			[self._chromosome, str(self._gap_start), str(self._gap_end), str(self._gap_width()), 
 				str(self._read_start), str(self._read_end), str(self._read_width()), self._split_read_name, self._original_read_name()])
 
-	def _sort_key(self):
-		return (self._chromosome, self._gap_start)
+	def _gap_spans_read(self, read):
+		return self._gap_start <= read._read_start and read._read_end <= self._gap_end
+
+	def _key(self):
+		return "|".join([self._chromosome, str(self._gap_start), str(self._gap_end), str(self._gap_width()), 
+			str(self._read_start), str(self._read_end), self._split_read_name])
 
 class GapUtility():
 	
@@ -110,6 +114,43 @@ class GapUtility():
 			writer.write(gap._format(self._delimiter))
 			writer.write("\n")
 
+	# #TODO: Refactor this to make my head stop hurting
+	# def filter_spanning_gaps(self, sorted_gaps, logger):
+	# 	def _chromosome_generator(sorted_gaps):
+	# 		gaps=[]
+	# 		current_chromosome = "" if len(sorted_gaps) == 0 else sorted_gaps[0]._chromosome
+	# 		for gap in sorted_gaps:
+	# 			if gap._chromosome != current_chromosome:
+	# 				yield gaps
+	# 				current_chromosome = gap._chromosome
+	# 				gaps = []
+	# 			else:
+	# 				gaps.append(gap)
+	# 		yield gaps
+	# 
+	# 	count = 0
+	# 	spanning_gaps = set()
+	# 	for transcript_gaps in _chromosome_generator(sorted_gaps):
+	# 		large_gaps = [i for i in transcript_gaps if i._gap_width() > self._original_read_len]
+	# 		transcript_gaps.sort(key=lambda gap: -1 * gap._read_len())
+	# 		count += 1
+	# 		if True or count % 1000 == 1:
+	# 			logger.log("processing transcript {0}; {1} gaps * {2} large gaps".format(count, len(transcript_gaps), len(large_gaps)))
+	# 		for gap in large_gaps:
+	# 			for read in transcript_gaps:
+	# 				if read._read_width() > gap._gap_width():
+	# 					break
+	# 				if gap._gap_spans_read(read):
+	# 					spanning_gaps.add(gap._key())
+	# 					#print gap._key() + " spanned " + read._format("|")
+	# 					break
+	# 			if gap._key() in spanning_gaps:
+	# 				transcript_gaps.remove(gap)
+	# 				continue
+	# 				
+	# 	logger.log("filtering {0} spanning_gaps".format(len(spanning_gaps)))
+	# 	return [gap for gap in sorted_gaps if gap._key() not in spanning_gaps]
+
 def main(sam_file_name, original_read_len, gap_file_name, delimiter):
  	logger = StdErrLogger(verbose=True)
 	logger.log(" ".join(sys.argv), verbose=False)
@@ -121,19 +162,24 @@ def main(sam_file_name, original_read_len, gap_file_name, delimiter):
 	gaps = gap_utility.samfile_to_gaps(sam_file)
 	sam_file.close()
 
-	logger.log("sorting gap lines")	
+	logger.log("sorting {0} gaps".format(len(gaps)))	
 	gaps = gap_utility.sort_gaps(gaps)
 
-	logger.log("writing gap file")
+	# logger.log("identfying spanning gaps")
+	# gaps = gap_utility.filter_spanning_gaps(gaps, logger)
+
+	logger.log("writing {0} gaps to file".format(len(gaps)))
 	gap_file = open(gap_file_name, "w")
 	gap_utility.write_gap_file(gaps, gap_file, header_lines)
 	gap_file.close()
 	
+	
 	logger.log("complete")
 	
 if __name__ == "__main__":
+	basename = os.path.basename(sys.argv[0])
 	if (len(sys.argv) != 4):
-		print "usage: {0} [sam_file] [original_read_len] [gap_file]".format(os.path.basename(sys.argv[0]))
+		print "usage: {0} [sam_file] [original_read_len] [gap_file]".format(basename)
 		sys.exit() 
 
 	(sam_file_name, original_read_len, gap_file_name) = sys.argv[1:]
@@ -141,4 +187,4 @@ if __name__ == "__main__":
 	gap_file_name = os.path.abspath(gap_file_name)
 
 	main(sam_file_name, original_read_len, gap_file_name, "\t") 
-	print "done."
+	print basename + " done."
