@@ -1,11 +1,8 @@
-#! /usr/bin/env python2.6
-
-import sys ; sys.path.insert(0, "../bin")
 import unittest
 import tempfile
 import os
 
-from partition_file import splitfile, FileSystem
+from bin.partition_file import splitfile, FileSystem
 
 class SplitFileTest(unittest.TestCase):
 	

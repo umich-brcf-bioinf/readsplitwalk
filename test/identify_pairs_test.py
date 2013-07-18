@@ -1,8 +1,5 @@
-#! /usr/bin/env python2.6
-
-import sys ; sys.path.insert(0, "../bin")
 import unittest
-from identify_pairs import BowtieSplitReadBuilder, LegacySplitReadBuilder, ReadLengthValidator, ReadLengthValidationError, SamSplitReadBuilder, SplitRead, _build_read_groups, _write_rsw_pairs, _write_sam_pairs, _build_pairs_from_groups, _identify_common_group_keys, _filter_pairs, _distance_filter, _orientation_filter, _composite_filter
+from bin.identify_pairs import BowtieSplitReadBuilder, LegacySplitReadBuilder, ReadLengthValidator, ReadLengthValidationError, SamSplitReadBuilder, SplitRead, _build_read_groups, _write_rsw_pairs, _write_sam_pairs, _build_pairs_from_groups, _identify_common_group_keys, _filter_pairs, _distance_filter, _orientation_filter, _composite_filter
 
 
 class LegacySplitReadBuilderTest(unittest.TestCase):

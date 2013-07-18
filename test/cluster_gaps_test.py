@@ -1,11 +1,8 @@
-#! /usr/bin/env python2.6
-
-import sys ; sys.path.insert(0, "../bin")
 import unittest
-from cluster_gaps import GapUtility, Gap
+from bin.cluster_gaps import GapUtility, Gap
 
 
-class GapTest(unittest.TestCase):
+class GapTestCase(unittest.TestCase):
 
 	def test_gap_width(self):
 		self.assertEqual(12, Gap("split-read-name-L-13", "chromosome", 0, 4, 16, 64)._gap_width())
@@ -34,7 +31,7 @@ class GapTest(unittest.TestCase):
 		self.assertEqual(False, base == Gap("split-read-name-L-13", "chromosome", 0, 4, 16, -42))
 
 
-class GapUtilityTest(unittest.TestCase):
+class GapUtilityTestCase(unittest.TestCase):
 
 	def test_build_gap(self):	
 		original_read_len = 50

@@ -1,14 +1,8 @@
-#! /usr/bin/env python2.6
-
-import sys ; sys.path.insert(0, "../bin")
-#input example: /ccmb/BioinfCore_ARCHIVE/Vol01/ccmbCoreProjects_Archieve_YBAI/Run_46/Probe/s6.unmapped.fa
-#output example: /ccmb/BioinfCore_ARCHIVE/Vol01/ccmbCoreProjects_Archieve_YBAI/Run_46/Probe/s6.unmapped.fa.split.left15_right17
-
 import unittest
 import tempfile
 import os
 
-from split_read import FQStanza, build_splits, write_stanzas, stanza_generator
+from bin.split_read import FQStanza, build_splits, write_stanzas, stanza_generator
 
 
 class FQStanzaTest(unittest.TestCase):
