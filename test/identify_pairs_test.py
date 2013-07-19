@@ -2,7 +2,7 @@ import unittest
 from bin.identify_pairs import BowtieSplitReadBuilder, LegacySplitReadBuilder, ReadLengthValidator, ReadLengthValidationError, SamSplitReadBuilder, SplitRead, _build_read_groups, _write_rsw_pairs, _write_sam_pairs, _build_pairs_from_groups, _identify_common_group_keys, _filter_pairs, _distance_filter, _orientation_filter, _composite_filter
 
 
-class LegacySplitReadBuilderTest(unittest.TestCase):
+class LegacySplitReadBuilderTestCase(unittest.TestCase):
 
 	def test_build(self):
 		read_len = 30		
@@ -23,7 +23,7 @@ class LegacySplitReadBuilderTest(unittest.TestCase):
 		
 
 
-class BowtieSplitReadBuilderTest(unittest.TestCase):
+class BowtieSplitReadBuilderTestCase(unittest.TestCase):
 
 	def test_build(self):
 		read_len = 30		
@@ -43,7 +43,7 @@ class BowtieSplitReadBuilderTest(unittest.TestCase):
 		self.assertRaises(Exception, builder.build, "name|L|10")
 		
 		
-class SamSplitReadBuilderTest(unittest.TestCase):
+class SamSplitReadBuilderTestCase(unittest.TestCase):
 
 	def test_build(self):
 		read_len = 30		
@@ -63,7 +63,7 @@ class SamSplitReadBuilderTest(unittest.TestCase):
 		self.assertRaises(Exception, builder.build, "name|L|10")
 		
 		
-class SplitReadTest(unittest.TestCase):
+class SplitReadTestCase(unittest.TestCase):
 		
 	def test_side(self):
 		sr = SplitRead(**initParams({'side':"L"}))
@@ -74,7 +74,7 @@ class SplitReadTest(unittest.TestCase):
 		self.assertEqual("the_read_name", sr._name)
 		
 	def test_format(self):
-		params = initParams({'name':"foo", 'side':"L", 'split_len':10, 'strand':"strand", 'chr':"chr", 'position':100, 'matches':5}) 
+		params = initParams({'name':"foo", 'side':"L", 'split_len':10, 'strand':"strand", 'chromosome':"chr", 'position':100, 'matches':5}) 
 		sr = SplitRead(**params)
 		self.assertEqual("foo~L~10~strand~chr~100~5", sr.format("~"))	
 
@@ -178,16 +178,16 @@ class SplitReadTest(unittest.TestCase):
 		
 	def test_write_sam_pairs_writesLineForEachPairParticipation(self):
 		writer = MockWriter()
-		stub_line = "readA\t"*12
+		stub_line = "readA|"*12
 		leftA5 = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5}))
 		rightA10 = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 10}))
 		rightA15 = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 15}))
 		
 		read_group_key = leftA5.key()
-		read_group_pairs = {read_group_key:[(leftA5, rightA10, 5), (leftA5, rightA15, 10)]}
+		read_group_pairs = {read_group_key:[(leftA5, rightA10), (leftA5, rightA15)]}
 
 		split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5}))
-		split_read_from_file.write_sam_pairs(read_group_pairs, stub_line+"\n", writer)
+		split_read_from_file.write_sam_pairs(read_group_pairs, stub_line+"\n", writer, "|")
 		
 		actual_lines = writer.lines()
 		self.assertEqual(2, len(actual_lines))
@@ -272,7 +272,7 @@ class SplitReadTest(unittest.TestCase):
 		self.assertEqual(set([readB30.key()]), group_keys["R"])
 
 
-class ReadLengthValidatorTest(unittest.TestCase):
+class ReadLengthValidatorTestCase(unittest.TestCase):
 	
 	def test_check_split_length(self):
 		read_length = 42
@@ -298,7 +298,7 @@ class ReadLengthValidatorTest(unittest.TestCase):
                 self.assertRaises(ReadLengthValidationError, validator.check_read_length)
 
 
-class IdentifyPairsTest(unittest.TestCase):
+class IdentifyPairsTestCase(unittest.TestCase):
 
 	def test_identify_common_group_keys(self):
 		read1 = MockSplitRead("key1", "L")
@@ -530,7 +530,7 @@ class MockSplitRead():
 	def is_oriented(self, other):		
 		return self._is_oriented
 
-	def write_sam_pairs(self, read_group_pairs, line, writer):
+	def write_sam_pairs(self, read_group_pairs, line, writer, delimiter):
 		self.write_sam_pairs_called += 1
 
 	def add_to_read_groups(self, common_keys, read_groups):
@@ -560,7 +560,7 @@ class MockValidator():
 	def check_read_length(self): pass
 
 def initParams(updates):
-	params = {'name':"name", 'side':"L", 'split_len':10, 'strand':"+", 'chr':"chr", 'position':100, 'matches':5, 'original_read_len': 33} 
+	params = {'name':"name", 'side':"L", 'split_len':10, 'strand':"+", 'chromosome':"chr", 'position':100, 'matches':5, 'original_read_len': 33} 
 	params.update(updates);
 	return params
 

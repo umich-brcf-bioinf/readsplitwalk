@@ -18,7 +18,7 @@ class GapTestCase(unittest.TestCase):
 		
 	def test_format(self):
 		gap = Gap("split-read-name-L-13", "chromosome", 0, 4, 16, 64)
-		self.assertEqual("chromosome|4|16|12|0|64|64|split-read-name-L-13|split-read-name", gap._format("|"))
+		self.assertEqual("chromosome|4|16|12|0|64|64|split-read-name-L-13|split-read-name", gap.format("|"))
 
 	def test_eq(self):
 		base = Gap("split-read-name-L-13", "chromosome", 0, 4, 16, 64)
@@ -40,8 +40,8 @@ class GapUtilityTestCase(unittest.TestCase):
 
 		gap = GapUtility(original_read_len, delimiter).build_gap(sam_line)
 		
-		self.assertEqual("transcript42", gap._chromosome)
-		self.assertEqual(105, gap._gap_start)
+		self.assertEqual("transcript42", gap.chromosome)
+		self.assertEqual(105, gap.gap_start)
 		self.assertEqual(150, gap._gap_end)
 		self.assertEqual(100, gap._read_start)
 		self.assertEqual(195, gap._read_end)
@@ -59,8 +59,8 @@ class GapUtilityTestCase(unittest.TestCase):
 		gaps = GapUtility(original_read_len, delimiter).samfile_to_gaps(sam_file)
 
 		self.assertEqual(2, len(gaps))
-		self.assertEqual("transcript42", gaps[0]._chromosome)
-		self.assertEqual("transcript43", gaps[1]._chromosome)
+		self.assertEqual("transcript42", gaps[0].chromosome)
+		self.assertEqual("transcript43", gaps[1].chromosome)
 
 	def test_sort_gap_lines_sortedByChromByAlphaAndGapStartByNumeric(self):
 		
@@ -101,7 +101,7 @@ class MockGap():
 	def __init__(self, format_string):
 		self._format_string = format_string
 
-	def _format(self, delimiter):
+	def format(self, delimiter):
 		return self._format_string
 
 
