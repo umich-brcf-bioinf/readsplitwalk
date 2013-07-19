@@ -4,7 +4,7 @@ import os
 import re
 import sys
 
-#pylint: disable=C0301
+#pylint: disable=line-too-long
 class FQStanza(object):
     """ Encapsulates the four line chunks of a fastq file. """
     

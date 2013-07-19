@@ -38,7 +38,7 @@ class Gap():
     
     @staticmethod
     def header():
-        # pylint: disable=C0301
+        # pylint: disable=line-too-long
         return "#chromosome|gap_start|gap_end|gap_width|read_start|read_end|read_width|split_read_name|original_read_name"
 
     _name_re = re.compile(r"(.+)-([LR])-([\d]+)$")
@@ -143,9 +143,9 @@ def main(sam_file_name, original_read_len, gap_file_name, delimiter):
 if __name__ == "__main__":
     BASENAME = os.path.basename(sys.argv[0])
     if (len(sys.argv) != 4):
-        # pylint: disable=C0301
+        # pylint: disable=line-too-long
         print "usage: {0} [sam_file] [original_read_len] [gap_file]".format(BASENAME)
-        sys.exit() 
+        sys.exit()
 
     (SAM_FILE_NAME, ORIGINAL_READ_LEN, GAP_FILE_NAME) = sys.argv[1:]
     SAM_FILE_NAME = os.path.abspath(SAM_FILE_NAME)

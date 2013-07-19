@@ -107,7 +107,7 @@ class StdErrLogger():
             usage = resource.getrusage(resource.RUSAGE_SELF)
             memory_used = usage.ru_maxrss/1024
             function_name = traceback.extract_stack()[-2:-1][0][2]
-            # pylint: disable=C0301
+            # pylint: disable=line-too-long
             message = "usertime(s)={0:.0f}|systime(s)={1:.0f}|peak_memory_used(mb)={2}|{3}|{4}".\
                 format(usage.ru_utime, usage.ru_stime, memory_used, function_name, message)
         print >> sys.stderr, "{0}|{1}".format(datetime.today(), message)
@@ -171,12 +171,12 @@ class SplitRead():
         and strand would be part of the same read group. For this reason, the
         key is always the 'left-side' key."""
         if self._side == "L":
-            # pylint: disable=C0301
+            # pylint: disable=line-too-long
             return "{0}|{1}|{2}|{3}|{4}".format(self._name, self._side, self._split_len, self._strand, self._chr)
         else:  
             new_side = "L"
             new_split_len = self._original_read_len - int(self._split_len)
-            # pylint: disable=C0301
+            # pylint: disable=line-too-long
             return "{0}|{1}|{2}|{3}|{4}".format(self._name, new_side, new_split_len, self._strand, self._chr)
 
     def left_name(self):
@@ -315,7 +315,7 @@ class ReadLengthValidator():
     def check_split_length(self, split_len):
         if split_len > self._original_read_len:
             raise ReadLengthValidationError(\
-                 # pylint: disable=C0301
+                 # pylint: disable=line-too-long
                 "Length of a split read ({0}) exceeds specified overall read length ({1})". \
                 format(split_len, self._original_read_len))
         self._min_len = min(split_len, self._min_len)
@@ -324,7 +324,7 @@ class ReadLengthValidator():
     def check_read_length(self):
         computed_len = self._min_len + self._max_len
         if (computed_len != self._original_read_len):
-            #pylint: disable=C0301
+            #pylint: disable=line-too-long
             raise ReadLengthValidationError(\
                 "Specified read length ({0}) doesn't equal computed read length ({1}) ({2}-{3})". \
                 format(self._original_read_len, computed_len, self._min_len, self._max_len))
@@ -506,7 +506,7 @@ def _filter_pairs(all_read_group_pairs, pair_filter, logger):
         if pair_list:
             filtered_pairs[key] = pair_list
 
-    # pylint: disable=C0301
+    # pylint: disable=line-too-long
     logger.log("{0} pairs processed, {1} pairs passed".format(count_total, count_included))
     return filtered_pairs
 
@@ -609,7 +609,7 @@ def main(original_read_len, input_file_name, output_file_name, \
 
 if __name__ == "__main__":
 
-    # pylint: disable=C0301
+    # pylint: disable=line-too-long
     USAGE = "usage: {0} [infile] [outfile] [read_len] [min_distance] [max_distance]".format(os.path.basename(sys.argv[0]))
     if (len(sys.argv) != 6):
         print USAGE
@@ -632,6 +632,6 @@ if __name__ == "__main__":
         print USAGE
         sys.exit()  
 
-    # pylint: disable=C0301
+    # pylint: disable=line-too-long
     main(ORIGINAL_READ_LEN, INFILE, OUTFILE, SAM_OUTFILE, MIN_DISTANCE, MAX_DISTANCE) 
     print "done."

@@ -19,7 +19,7 @@ def splitfile(filesystem, filepath, output_path, col_index, delim):
         values.add(value)
 
         if count % 10000 == 1 and len(values) > 100:
-            # pylint: disable=C0301
+            # pylint: disable=line-too-long
             raise ValueError("More than 100 distinct values for column index [{0}]".format(col_index))
 
     datafile.close()
@@ -28,7 +28,7 @@ def splitfile(filesystem, filepath, output_path, col_index, delim):
     subfiles = {}
     base_filename = os.path.basename(filepath)
     for value in values:
-        # pylint: disable=C0301
+        # pylint: disable=line-too-long
         subfilen = "{0}{1}.{2}.{3}".format(output_path, base_filename, value, _SPLIT_FILE_EXTENSION)
         subfile = filesystem.open_file(subfilen, "w")
         subfiles[value] = subfile
@@ -59,7 +59,7 @@ class FileSystem():
 if __name__ == "__main__":
 
     if (len(sys.argv)  < 4 or len(sys.argv) > 5):
-        # pylint: disable=C0301
+        # pylint: disable=line-too-long
         print "usage: {0} [infile] [output path] [partition column zero-based index] [delimiter='\\t' (regex delimiter)]". \
                 format(os.path.basename(sys.argv[0]))
         sys.exit() 
