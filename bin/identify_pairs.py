@@ -193,6 +193,9 @@ class SplitRead():
             return self.__dict__ == other.__dict__
         return False
 
+    def __hash__(self):
+        return self.key()
+
     def sam_fields(self, pair):
         flag = SamFlags.ALIGNED | SamFlags.MULTIPLE_SEGMENTS
         
@@ -475,7 +478,7 @@ def _build_pairs_from_groups(read_groups, logger):
     gc.disable()
     count = 0
     pairs = {}
-    for key, read_group in read_groups.iteritems():
+    for key, read_group in read_groups.items():
         pair = pairs.setdefault(key, [])
         count += 1
         if count % 100000 == 1: 
@@ -496,7 +499,7 @@ def _filter_pairs(all_read_group_pairs, pair_filter, logger):
     filtered_pairs = {}
     count_total = 0
     count_included = 0
-    for key, pairs in all_read_group_pairs.iteritems():
+    for key, pairs in all_read_group_pairs.items():
         pair_list = []
         for pair in pairs:
             count_total += 1
@@ -531,7 +534,7 @@ def _composite_filter(filter_list):
 
 def _write_rsw_pairs(all_read_group_pairs, writer, logger, delimiter="\t"):
     count = 0
-    for read_group_pairs in all_read_group_pairs.itervalues():
+    for read_group_pairs in all_read_group_pairs.values():
         for pair in read_group_pairs:
             count += 1
             left_read = pair[0].format(delimiter)

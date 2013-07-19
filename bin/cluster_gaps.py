@@ -50,11 +50,16 @@ class Gap():
         self._read_start = read_start
         self._read_end = read_end
         self._split_read_name = split_read_name
+        self._hash_key = hash(tuple( \
+            [chromosome, split_read_name, read_start, read_end]))
 
     def __eq__(self, other):
         if type(other) is type(self):
             return self.__dict__ == other.__dict__
         return False
+        
+    def __hash__(self):
+        return self.hash_key
         
     def _read_width(self):
         return self._read_end - self._read_start

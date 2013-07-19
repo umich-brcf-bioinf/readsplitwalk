@@ -152,5 +152,4 @@ class MockReader():
 
 
 if __name__ == "__main__":
-	unittest.main() 
-	print "done."
+	unittest.main()
