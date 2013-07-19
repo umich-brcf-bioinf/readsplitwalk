@@ -194,7 +194,7 @@ class SplitReadTestCase(unittest.TestCase):
 
     def test_write_sam_pairs_writesPositiveStrandSamLines(self):
         writer = MockWriter()
-        input_line = "readA 147 chr12   5   255 42M *   0   0   TCACC   DDDDD   XA:i:0"
+        input_line = "readA|147|chr12|5|255|42M|*|0|0|TCACC|DDDDD|XA:i:0"
         left_read = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5000, 'split_len':15, 'original_read_len':100}))
         right_read = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 5200, 'split_len':85, 'original_read_len':100}))
         
@@ -202,18 +202,18 @@ class SplitReadTestCase(unittest.TestCase):
         read_group_pairs = {read_group_key:[(left_read, right_read)]}
 
         first_split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5000, 'split_len':15, 'original_read_len':100}))
-        first_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer)
+        first_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer,"|")
         second_split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 5200, 'split_len':85, 'original_read_len':100}))
-        second_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer)
+        second_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer,"|")
         
         actual_lines = writer.lines()
         self.assertEqual(2, len(actual_lines))
-        self.assertEqual("readA-L-15    67  chr12   5000    255 42M =   5200    200 TCACC   DDDDD   XA:i:0", actual_lines[0])
-        self.assertEqual("readA-L-15    131 chr12   5200    255 42M =   5000    -200    TCACC   DDDDD   XA:i:0", actual_lines[1])
+        self.assertEqual("readA-L-15|67|chr12|5000|255|42M|=|5200|200|TCACC|DDDDD|XA:i:0", actual_lines[0])
+        self.assertEqual("readA-L-15|131|chr12|5200|255|42M|=|5000|-200|TCACC|DDDDD|XA:i:0", actual_lines[1])
 
     def test_write_sam_pairs_writesNegativeStrandSamLines(self):
         writer = MockWriter()
-        input_line = "readA 147 chr12   5   255 42M *   0   0   TCACC   DDDDD   XA:i:0"
+        input_line = "readA|147|chr12|5|255|42M|*|0|0|TCACC|DDDDD|XA:i:0"
         left_read = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5200, 'split_len':15, 'original_read_len':100}))
         right_read = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 5000, 'split_len':85, 'original_read_len':100}))
         
@@ -221,14 +221,14 @@ class SplitReadTestCase(unittest.TestCase):
         read_group_pairs = {read_group_key:[(left_read, right_read)]}
 
         first_split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"L", 'position': 5200, 'split_len':15, 'original_read_len':100}))
-        first_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer)
+        first_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer,"|")
         second_split_read_from_file = SplitRead(**initParams({'name':'readA', 'side':"R", 'position': 5000, 'split_len':85, 'original_read_len':100}))
-        second_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer)
+        second_split_read_from_file.write_sam_pairs(read_group_pairs, input_line+"\n", writer,"|")
         
         actual_lines = writer.lines()
         self.assertEqual(2, len(actual_lines))
-        self.assertEqual("readA-L-15    115 chr12   5200    255 42M =   5000    -200    TCACC   DDDDD   XA:i:0", actual_lines[0])
-        self.assertEqual("readA-L-15    147 chr12   5000    255 42M =   5200    200 TCACC   DDDDD   XA:i:0", actual_lines[1])
+        self.assertEqual("readA-L-15|115|chr12|5200|255|42M|=|5000|-200|TCACC|DDDDD|XA:i:0", actual_lines[0])
+        self.assertEqual("readA-L-15|147|chr12|5000|255|42M|=|5200|200|TCACC|DDDDD|XA:i:0", actual_lines[1])
 
 
 
