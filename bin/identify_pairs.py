@@ -110,7 +110,7 @@ class StdErrLogger():
             # pylint: disable=line-too-long
             message = "usertime(s)={0:.0f}|systime(s)={1:.0f}|peak_memory_used(mb)={2}|{3}|{4}".\
                 format(usage.ru_utime, usage.ru_stime, memory_used, function_name, message)
-        print >> sys.stderr, "{0}|{1}".format(datetime.today(), message)
+        sys.stderr.write("{0}|{1}\n".format(datetime.datetime.today(), message))
 
 #pylint: disable=W0232
 class SamFlags():
@@ -612,7 +612,7 @@ if __name__ == "__main__":
     # pylint: disable=line-too-long
     USAGE = "usage: {0} [infile] [outfile] [read_len] [min_distance] [max_distance]".format(os.path.basename(sys.argv[0]))
     if (len(sys.argv) != 6):
-        print USAGE
+        print (USAGE)
         sys.exit() 
 
     (INFILE, OUTFILE, ORIGINAL_READ_LEN, MIN_DISTANCE, MAX_DISTANCE) = sys.argv[1:]
@@ -628,10 +628,10 @@ if __name__ == "__main__":
         if MAX_DISTANCE <= MIN_DISTANCE:
             raise ValueError("max distance must be greater than min distance")
     except ValueError as error:
-        print str(error)
-        print USAGE
+        print (str(error))
+        print (USAGE)
         sys.exit()  
 
     # pylint: disable=line-too-long
     main(ORIGINAL_READ_LEN, INFILE, OUTFILE, SAM_OUTFILE, MIN_DISTANCE, MAX_DISTANCE) 
-    print "done."
+    print ("done.")

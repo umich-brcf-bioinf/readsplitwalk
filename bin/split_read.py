@@ -82,8 +82,8 @@ def main(infilen, outfilen, split_margin):
 if __name__ == "__main__":
 
     if (len(sys.argv)  < 4 or len(sys.argv) > 5):
-        print "usage: {0} [infile] [outfile] [split_margin]". \
-            format(os.path.basename(sys.argv[0]))
+        print ("usage: {0} [infile] [outfile] [split_margin]". \
+            format(os.path.basename(sys.argv[0])))
         sys.exit(1) 
 
 
@@ -95,4 +95,4 @@ if __name__ == "__main__":
         raise ValueError("infile [{0}] does not exist".format(INFILENAME))
 
     main(INFILENAME, OUTFILENAME, SPLIT_MARGIN)
-    print "done."
+    print ("done.")

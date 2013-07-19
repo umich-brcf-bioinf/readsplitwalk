@@ -30,8 +30,7 @@ class StdErrLogger():
                 "peak_memory_used(mb)={2}|{3}|{4}". \
                 format(usage.ru_utime, usage.ru_stime, memory_used, 
                     function_name, message)
-        print >> sys.stderr, \
-            "{0}|{1}".format(datetime.datetime.today(), message)
+        sys.stderr.write("{0}|{1}\n".format(datetime.datetime.today(), message))
 
 class Gap():
     """Models an aligned pair of split reads"""
@@ -144,7 +143,7 @@ if __name__ == "__main__":
     BASENAME = os.path.basename(sys.argv[0])
     if (len(sys.argv) != 4):
         # pylint: disable=line-too-long
-        print "usage: {0} [sam_file] [original_read_len] [gap_file]".format(BASENAME)
+        print ("usage: {0} [sam_file] [original_read_len] [gap_file]".format(BASENAME))
         sys.exit()
 
     (SAM_FILE_NAME, ORIGINAL_READ_LEN, GAP_FILE_NAME) = sys.argv[1:]
@@ -152,4 +151,4 @@ if __name__ == "__main__":
     GAP_FILE_NAME = os.path.abspath(GAP_FILE_NAME)
 
     main(SAM_FILE_NAME, ORIGINAL_READ_LEN, GAP_FILE_NAME, "\t") 
-    print "{0} done.".format(BASENAME)
+    print ("{0} done.".format(BASENAME))

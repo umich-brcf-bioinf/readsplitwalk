@@ -60,8 +60,8 @@ if __name__ == "__main__":
 
     if (len(sys.argv)  < 4 or len(sys.argv) > 5):
         # pylint: disable=line-too-long
-        print "usage: {0} [infile] [output path] [partition column zero-based index] [delimiter='\\t' (regex delimiter)]". \
-                format(os.path.basename(sys.argv[0]))
+        print ()"usage: {0} [infile] [output path] [partition column zero-based index] [delimiter='\\t' (regex delimiter)]". \
+                format(os.path.basename(sys.argv[0])))
         sys.exit() 
 
 
@@ -81,4 +81,4 @@ if __name__ == "__main__":
         DELIM = "\t" 
     FILESYSTEM = FileSystem()
     splitfile(FILESYSTEM, INFILE, OUTPUT_PATH, COL_INDEX, DELIM)
-    print "done."
+    print ("done.")
