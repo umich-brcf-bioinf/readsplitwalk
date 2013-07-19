@@ -415,11 +415,11 @@ class IdentifyPairsTestCase(unittest.TestCase):
         actual_pairs = _build_pairs_from_groups(groups, MockLogger()) 
     
         self.assertEqual(1, len(actual_pairs))
-        sorted_actual_pairs = sorted(actual_pairs['key1']) 
-        sorted_expected_pairs = sorted([(leftA, rightA), (leftA, rightB), (leftB, rightA), (leftB, rightB)])
+        ordered_actual_pairs = sorted(actual_pairs['key1'], key=lambda pair: (pair[0]._name, pair[1]._name))
+        ordered_expected_pairs = [(leftA, rightA), (leftA, rightB), (leftB, rightA), (leftB, rightB)]
     
-        self.assertEqual(4, len(sorted_actual_pairs))
-        self.assertEqual(sorted_expected_pairs, sorted_actual_pairs)
+        self.assertEqual(4, len(ordered_actual_pairs))
+        self.assertEqual(ordered_expected_pairs, ordered_actual_pairs)
         
 
     def test_filter_pairs(self):
