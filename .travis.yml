@@ -12,3 +12,4 @@ script:  nosetests
 notifications:
   email:
     - cgates@umich.edu
+    - pulintz@umich.edu
