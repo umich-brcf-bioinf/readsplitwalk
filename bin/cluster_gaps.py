@@ -4,15 +4,43 @@
 cluster_gaps.py
 7/10/2013- cgates/pulintz
 7/14/2013 - cgates: refactored to use a Gap object
+7/28/2013 - cgates: overhauled to 
+    a) use DBSCAN for clustering, 
+    b) read and passthrough sample ids from sam 
+    c) emit a sam file with cluster annotations
 """
-
+from contextlib import nested
 import datetime
 import os
 import re
 import resource
 import sys
 import traceback
+from cluster_utility import DbscanClusterUtility
 
+class ClusterGapsError(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+class MissingReadGroupError(ClusterGapsError):
+    def __init__(self, line):
+        super(MissingReadGroupError, self).__init__()
+        self.line = line
+
+    def __str__(self):
+        return repr("Alignment has no read group: '{0}'". \
+            format(self.line))
+
+class InvalidReadGroupError(ClusterGapsError):
+    def __init__(self, line):
+        super(InvalidReadGroupError, self).__init__()
+        self.line = line
+
+    def __str__(self):
+        return repr("Specified read group not valid or not found in header: '{0}'". \
+            format(self.line))
+
+            
 # pylint: disable=R0903
 class StdErrLogger():
     """Writes basic utilization data to stderr"""
@@ -36,22 +64,25 @@ class Gap():
     """Models an aligned pair of split reads"""
     
     @staticmethod
-    def header():
-        # pylint: disable=line-too-long
-        return "#chromosome|gap_start|gap_end|gap_width|read_start|read_end|read_width|split_read_name|original_read_name"
+    def header(delimiter):
+        return delimiter.join(["#chromosome", "cluster", "sample_name", 
+            "gap_start", "gap_end","gap_width","read_start","read_end",
+            "read_width","split_read_name","original_read_name"])
 
     _name_re = re.compile(r"(.+)-([LR])-([\d]+)$")
 
-    def __init__(self, split_read_name, chromosome, read_start, gap_start, 
+    def __init__(self, sample, split_read_name, chromosome, read_start, gap_start, 
             gap_end, read_end):
+        self.sample = sample
         self.chromosome = chromosome
         self.gap_start = gap_start
         self._gap_end = gap_end
         self._read_start = read_start
         self._read_end = read_end
         self._split_read_name = split_read_name
+        self.cluster = -1
         self._hash_key = hash(tuple( \
-            [chromosome, split_read_name, read_start, read_end]))
+            [sample, chromosome, split_read_name, read_start, read_end]))
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -59,12 +90,15 @@ class Gap():
         return False
         
     def __hash__(self):
-        return self.hash_key
+        return self._hash_key
+        
+    def key(self):
+        return self._hash_key
         
     def _read_width(self):
         return self._read_end - self._read_start
     
-    def _gap_width(self):
+    def gap_width(self):
         return self._gap_end - self.gap_start
 
     def _original_read_name(self):
@@ -72,38 +106,79 @@ class Gap():
 
     def format(self, delimiter):
         return delimiter.join(
-            [self.chromosome, str(self.gap_start), str(self._gap_end), 
-                str(self._gap_width()), str(self._read_start), 
+            [self.chromosome, str(self.cluster), self.sample, str(self.gap_start), str(self._gap_end), 
+                str(self.gap_width()), str(self._read_start), 
                 str(self._read_end), str(self._read_width()), 
                 self._split_read_name, self._original_read_name()])
 
+    def cluster_tag(self):
+        return "XC:i:{0}".format(self.cluster)
+
 class GapUtility():
     
-    def __init__(self, original_read_len, delimiter):
+    def __init__(self, original_read_len, delimiter, logger):
         self._original_read_len = int(original_read_len)
         self._delimiter = delimiter
+        self._logger = logger
+        self._read_group_sample_dict = {}
+
+    def process_sam_header_line(self, sam_line):
+        if sam_line.startswith("@RG"):
+            key_values = sam_line.rstrip().split(self._delimiter)[1:]
+            read_group = dict(u.split(":") for u in key_values)
+            try:
+                self._read_group_sample_dict[read_group['ID']] = read_group['SM']
+            except:
+                print read_group
+                raise InvalidReadGroupError(sam_line)
+                
+    def sample_from_alignment(self, sam_line):
+        bits = sam_line.rstrip().split(self._delimiter)
+        if len(bits) < 12:
+            raise MissingReadGroupError(sam_line)
+        opt_dict = dict(re.split(':\w:', entries) for entries in bits[11:])
+        if 'RG' not in opt_dict:
+            raise MissingReadGroupError(sam_line)
+        read_group = opt_dict['RG']
+        if read_group not in self._read_group_sample_dict:
+            raise InvalidReadGroupError(sam_line)
+        return self._read_group_sample_dict[read_group]
+        
 
     def build_gap(self, sam_line):
         bits = sam_line.split(self._delimiter)[0:10]
         split_read_name = bits[0] 
         transcript_name = bits[2] 
-        start_pos = bits[3]
-        pnext = bits[7]
+        start_pos = int(bits[3])
+        pnext = int(bits[7])
         seq = bits[9]
-        l_gap_pos = int(start_pos) + len(seq)
-        r_gap_pos = int(pnext)
-        leftmost_start = int(start_pos)
-        rightmost_end = int(pnext) + (self._original_read_len - len(seq))
-        return Gap(split_read_name, transcript_name, leftmost_start, l_gap_pos,
-            r_gap_pos, rightmost_end)
+        if start_pos < pnext :
+            leftmost_start = start_pos
+            gap_start = start_pos + len(seq)
+            gap_end = pnext
+            rightmost_end = pnext + (self._original_read_len - len(seq))
+        else:
+            leftmost_start = pnext
+            gap_start = pnext + (self._original_read_len - len(seq))
+            gap_end = start_pos
+            rightmost_end = start_pos + len(seq)
+        
+        sample_name = self.sample_from_alignment(sam_line)
+        
+        return Gap(sample_name, split_read_name, transcript_name, 
+            leftmost_start, gap_start, gap_end, rightmost_end)
 
     def samfile_to_gaps(self, sam_file):
+        
+        def is_leftmost_alignment_of_pair(line):
+            tlen = int(line.split(self._delimiter)[8])
+            return tlen > 0
+        
         gaps = []
         for line in sam_file:
             if line.startswith("@"):
-                continue
-            tlen = int(line.split(self._delimiter)[8])
-            if tlen > 0: 
+                self.process_sam_header_line(line)
+            elif is_leftmost_alignment_of_pair(line):
                 gaps.append(self.build_gap(line))
         return gaps
 
@@ -116,44 +191,75 @@ class GapUtility():
             writer.write("#")
             writer.write(line)
             writer.write("\n")
-        writer.write(Gap.header())
+        writer.write(Gap.header(self._delimiter))
         writer.write("\n")
         for gap in sorted_gaps:
             writer.write(gap.format(self._delimiter))
             writer.write("\n")
 
-def main(sam_file_name, original_read_len, gap_file_name, delimiter):
+    def write_sam_file(
+            self, input_sam_file, gaps, output_sam_file, 
+            additional_header_lines):
+        self._logger.log("building gap dictionary")
+        gap_dict = {}
+        for gap in gaps:
+            gap_dict[gap.key()] = gap
+                
+        for line in additional_header_lines:
+                output_sam_file.write("@CO\t{0}\n".format(line))
+        count = 0
+        for line in input_sam_file:
+            count += 1
+            if count % 100000 == 1:
+                self._logger.log("processing line {0}".format(count))
+            if line.startswith("@"):
+                output_sam_file.write(line)
+            else:
+                sam_gap = self.build_gap(line)
+                cluster_tag =  gap_dict[sam_gap.key()].cluster_tag()
+                output_sam_file.write("{0}{1}{2}\n".format(line.rstrip(), self._delimiter, cluster_tag))
+        self._logger.log("processed {0} lines".format(count))
+
+def main(input_sam_file_name, original_read_len, gap_file_name, output_sam_file_name, delimiter):
     logger = StdErrLogger(verbose=True)
     logger.log(" ".join(sys.argv), verbose=False)
     header_lines = [str(datetime.datetime.today()), " ".join(sys.argv)] 
-    gap_utility = GapUtility(original_read_len, delimiter)
+    gap_utility = GapUtility(original_read_len, delimiter, logger)
     
     logger.log("parsing sam file")
-    sam_file = open(sam_file_name,"r")
-    gaps = gap_utility.samfile_to_gaps(sam_file)
-    sam_file.close()
+    with open(input_sam_file_name,"r") as sam_file:
+        gaps = gap_utility.samfile_to_gaps(sam_file)
 
     logger.log("sorting {0} gaps".format(len(gaps)))    
     gaps = GapUtility.sort_gaps(gaps)
 
+    logger.log("clustering gaps")
+    cluster_utility = DbscanClusterUtility(epsilon=0.1, min_samples=3, logger=logger)
+    cluster_utility.assign_clusters(gaps)
+
     logger.log("writing {0} gaps to file".format(len(gaps)))
-    gap_file = open(gap_file_name, "w")
-    gap_utility.write_gap_file(gaps, gap_file, header_lines)
-    gap_file.close()
-    
-    
-    logger.log("complete")
-    
+    with open(gap_file_name, "w") as gap_file:
+        gap_utility.write_gap_file(gaps, gap_file, header_lines)
+
+    logger.log("writing sam file with clusters")
+    with nested(open(input_sam_file_name,"r"), open(output_sam_file_name,"w")) \
+            as (input_sam_file, output_sam_file):
+        gap_utility.write_sam_file(
+            input_sam_file, gaps, output_sam_file, header_lines)
+
+    logger.log("{0} complete".format(input_sam_file_name))
+
 if __name__ == "__main__":
     BASENAME = os.path.basename(sys.argv[0])
-    if (len(sys.argv) != 4):
+    if (len(sys.argv) != 5):
         # pylint: disable=line-too-long
-        print ("usage: {0} [sam_file] [original_read_len] [gap_file]".format(BASENAME))
+        print ("usage: {0} [input_sam_file] [original_read_len] [gap_file] [output_sam_file]".format(BASENAME))
         sys.exit()
 
-    (SAM_FILE_NAME, ORIGINAL_READ_LEN, GAP_FILE_NAME) = sys.argv[1:]
-    SAM_FILE_NAME = os.path.abspath(SAM_FILE_NAME)
+    (INPUT_SAM_FILE_NAME, ORIGINAL_READ_LEN, GAP_FILE_NAME, OUTPUT_SAM_FILE_NAME) = sys.argv[1:]
+    INPUT_SAM_FILE_NAME = os.path.abspath(INPUT_SAM_FILE_NAME)
     GAP_FILE_NAME = os.path.abspath(GAP_FILE_NAME)
+    OUTPUT_SAM_FILE_NAME = os.path.abspath(OUTPUT_SAM_FILE_NAME)
 
-    main(SAM_FILE_NAME, ORIGINAL_READ_LEN, GAP_FILE_NAME, "\t") 
+    main(INPUT_SAM_FILE_NAME, ORIGINAL_READ_LEN, GAP_FILE_NAME, OUTPUT_SAM_FILE_NAME, "\t") 
     print ("{0} done.".format(BASENAME))
