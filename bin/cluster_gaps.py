@@ -234,7 +234,7 @@ def main(input_sam_file_name, original_read_len, gap_file_name, output_sam_file_
     gaps = GapUtility.sort_gaps(gaps)
 
     logger.log("clustering gaps")
-    cluster_utility = DbscanClusterUtility(epsilon=0.1, min_samples=3, logger=logger)
+    cluster_utility = DbscanClusterUtility(logger=logger)
     cluster_utility.assign_clusters(gaps)
 
     logger.log("writing {0} gaps to file".format(len(gaps)))

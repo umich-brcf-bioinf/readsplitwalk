@@ -33,29 +33,29 @@ function add_read_group {
 
 
 merge_sam Sample_21786_R1.05-identify_pairs_transcriptome.sam Sample_21786_R2.05-identify_pairs_transcriptome.sam Sample_21786_ALL.06-postprocess.sam
-# merge_sam Sample_21787_R1.05-identify_pairs_transcriptome.sam Sample_21787_R2.05-identify_pairs_transcriptome.sam Sample_21787_ALL.06-postprocess.sam
-# merge_sam Sample_21788_R1.05-identify_pairs_transcriptome.sam Sample_21788_R2.05-identify_pairs_transcriptome.sam Sample_21788_ALL.06-postprocess.sam
-# merge_sam Sample_21789_R1.05-identify_pairs_transcriptome.sam Sample_21789_R2.05-identify_pairs_transcriptome.sam Sample_21789_ALL.06-postprocess.sam
-# merge_sam Sample_21790_R1.05-identify_pairs_transcriptome.sam Sample_21790_R2.05-identify_pairs_transcriptome.sam Sample_21790_ALL.06-postprocess.sam
-# merge_sam Sample_21791_R1.05-identify_pairs_transcriptome.sam Sample_21791_R2.05-identify_pairs_transcriptome.sam Sample_21791_ALL.06-postprocess.sam
-# merge_sam Sample_21792_R1.05-identify_pairs_transcriptome.sam Sample_21792_R2.05-identify_pairs_transcriptome.sam Sample_21792_ALL.06-postprocess.sam
-# merge_sam Sample_21793_R1.05-identify_pairs_transcriptome.sam Sample_21793_R2.05-identify_pairs_transcriptome.sam Sample_21793_ALL.06-postprocess.sam
-# merge_sam Sample_21794_R1.05-identify_pairs_transcriptome.sam Sample_21794_R2.05-identify_pairs_transcriptome.sam Sample_21794_ALL.06-postprocess.sam
-# merge_sam Sample_21795_R1.05-identify_pairs_transcriptome.sam Sample_21795_R2.05-identify_pairs_transcriptome.sam Sample_21795_ALL.06-postprocess.sam
-# merge_sam Sample_21796_R1.05-identify_pairs_transcriptome.sam Sample_21796_R2.05-identify_pairs_transcriptome.sam Sample_21796_ALL.06-postprocess.sam
+merge_sam Sample_21787_R1.05-identify_pairs_transcriptome.sam Sample_21787_R2.05-identify_pairs_transcriptome.sam Sample_21787_ALL.06-postprocess.sam
+merge_sam Sample_21788_R1.05-identify_pairs_transcriptome.sam Sample_21788_R2.05-identify_pairs_transcriptome.sam Sample_21788_ALL.06-postprocess.sam
+merge_sam Sample_21789_R1.05-identify_pairs_transcriptome.sam Sample_21789_R2.05-identify_pairs_transcriptome.sam Sample_21789_ALL.06-postprocess.sam
+merge_sam Sample_21790_R1.05-identify_pairs_transcriptome.sam Sample_21790_R2.05-identify_pairs_transcriptome.sam Sample_21790_ALL.06-postprocess.sam
+merge_sam Sample_21791_R1.05-identify_pairs_transcriptome.sam Sample_21791_R2.05-identify_pairs_transcriptome.sam Sample_21791_ALL.06-postprocess.sam
+merge_sam Sample_21792_R1.05-identify_pairs_transcriptome.sam Sample_21792_R2.05-identify_pairs_transcriptome.sam Sample_21792_ALL.06-postprocess.sam
+merge_sam Sample_21793_R1.05-identify_pairs_transcriptome.sam Sample_21793_R2.05-identify_pairs_transcriptome.sam Sample_21793_ALL.06-postprocess.sam
+merge_sam Sample_21794_R1.05-identify_pairs_transcriptome.sam Sample_21794_R2.05-identify_pairs_transcriptome.sam Sample_21794_ALL.06-postprocess.sam
+merge_sam Sample_21795_R1.05-identify_pairs_transcriptome.sam Sample_21795_R2.05-identify_pairs_transcriptome.sam Sample_21795_ALL.06-postprocess.sam
+merge_sam Sample_21796_R1.05-identify_pairs_transcriptome.sam Sample_21796_R2.05-identify_pairs_transcriptome.sam Sample_21796_ALL.06-postprocess.sam
 merge_sam Sample_21797_R1.05-identify_pairs_transcriptome.sam Sample_21797_R2.05-identify_pairs_transcriptome.sam Sample_21797_ALL.06-postprocess.sam
 
 add_read_group Sample_21786_ALL.06-postprocess.sam
-# add_read_group Sample_21787_ALL.06-postprocess.sam
-# add_read_group Sample_21788_ALL.06-postprocess.sam
-# add_read_group Sample_21789_ALL.06-postprocess.sam
-# add_read_group Sample_21790_ALL.06-postprocess.sam
-# add_read_group Sample_21791_ALL.06-postprocess.sam
-# add_read_group Sample_21792_ALL.06-postprocess.sam
-# add_read_group Sample_21793_ALL.06-postprocess.sam
-# add_read_group Sample_21794_ALL.06-postprocess.sam
-# add_read_group Sample_21795_ALL.06-postprocess.sam
-# add_read_group Sample_21796_ALL.06-postprocess.sam
+add_read_group Sample_21787_ALL.06-postprocess.sam
+add_read_group Sample_21788_ALL.06-postprocess.sam
+add_read_group Sample_21789_ALL.06-postprocess.sam
+add_read_group Sample_21790_ALL.06-postprocess.sam
+add_read_group Sample_21791_ALL.06-postprocess.sam
+add_read_group Sample_21792_ALL.06-postprocess.sam
+add_read_group Sample_21793_ALL.06-postprocess.sam
+add_read_group Sample_21794_ALL.06-postprocess.sam
+add_read_group Sample_21795_ALL.06-postprocess.sam
+add_read_group Sample_21796_ALL.06-postprocess.sam
 add_read_group Sample_21797_ALL.06-postprocess.sam
 
 echo 'Merging all headers...'

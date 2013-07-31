@@ -6,21 +6,40 @@ Wraps the DBSCAN clustering implementation in a more abstract interface to
 enable modular clustering substitution and mocking.
 """
 import time
-#import sys
 import numpy as np
 from scipy.spatial import distance
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 
 
 class DbscanClusterUtility():
+        """
+        default min samples is set at number of dimensions + 1 
+            (i.e. 3 = 2 + 1)
+        default epsilon is based on fact that we are not scaling the matrix
+            of (gap_start, gap_width) data and also the idea that true split 
+            reads should be piling up literally on top of one another.
+        Reasonable clustering behavior was confirmed through visual 
+            inspection of several representative transcripts."""
     
-    def __init__(self, epsilon, min_samples, logger):
-        self._logger = logger
-        self._dbscan = DBSCAN(epsilon, min_samples)
+    class ShuntLogger():
+        def log(self):
+            pass
+    
+    def __init__(self, epsilon=3, min_samples=3, logger=None):
+        #Explicitily seeding ensures deterministic clusters; without seeding
+        #   boundary points may flop between clusters and cluster labels
+        #   invariably shift from run to run (innocuous, but very annoying 
+        #   when comparing results or otherwise testing). 
+        random_seed = 42
+        random_state = np.random.RandomState(seed = random_seed)
+        self._dbscan = DBSCAN(epsilon, min_samples, random_state = random_state)
+        self._logger = ShuntLogger() if logger == None else logger 
         self._logger.log(
-            "DBSCAN clustering with epsilon [{0}] and min_samples [{1}]"
-                .format(epsilon, min_samples))
+            "DBSCAN clustering with epsilon [{0}] and min_samples [{1}] "
+                "using random seed [{2}]"
+                .format(epsilon, min_samples, random_seed))
 
     @staticmethod
     def _chromosome_partition(sorted_gaps):
@@ -52,10 +71,7 @@ class DbscanClusterUtility():
         for gap in chromosome_gaps:
             matrix.append(
                 [float(gap.gap_start), float(gap.gap_width())])
-        # Subtract the mean and divide by stdev so gap starts and gap widths 
-        # are "square", ensuring that euclidean distances work as expected.
-        scaled_matrix = StandardScaler().fit_transform(matrix)
-        clusters = self._dbscan.fit(scaled_matrix).labels_
+        clusters = self._dbscan.fit_predict(np.matrix(matrix))
         
         for gap, cluster in zip(chromosome_gaps, clusters):
             gap.cluster = int(cluster)

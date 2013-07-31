@@ -14,7 +14,7 @@ function cluster {
 	"${BIN_DIR}"/cluster_gaps.py ${SAM} ${ORIGINAL_READ_LEN} ${OUTPUT_BASE_NAME}.tab ${OUTPUT_BASE_NAME}.sam
 	
 	echo groupby $SAM ...	
-	HEADER="#sample_name	transcript	gap_start_mean	gap_start_stdev	gap_length_min	gap_length_mean	gap_length_max	gap_length_stdev	split_read_count	original_read_count	cluster" 
+	HEADER="#transcript	cluster	sample_name	gap_start_mean	gap_start_stdev	gap_length_min	gap_length_mean	gap_length_max	gap_length_stdev	split_read_count	original_read_count" 
 	echo "${HEADER}" > ${OUTPUT_BASE_NAME}.groups.tab
     #tab file header
 	#chromosome      cluster	sample_name    gap_start       gap_end gap_width       read_start      read_end        read_width      split_read_name original_read_name      
