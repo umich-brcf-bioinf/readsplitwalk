@@ -20,7 +20,7 @@ class ClusterUtilityTestCase(unittest.TestCase):
         actual_cluster_count = dbscan._cluster_gaps(gaps)
         
         self.assertEquals(1, actual_cluster_count)
-        plot_clusters("ENSMUST00000000305", gaps, dbscan._dbscan)
+        #plot_clusters("ENSMUST00000000305", gaps, dbscan._dbscan)
 
     def test_cluster_gaps_singletonCluster(self):
         length = 5
@@ -58,7 +58,7 @@ class ClusterUtilityTestCase(unittest.TestCase):
         actual_cluster_count = dbscan._cluster_gaps(gaps)
         
         self.assertEquals(5, actual_cluster_count)
-        plot_clusters("ENSMUST00000063084", gaps, dbscan._dbscan)
+        #plot_clusters("ENSMUST00000063084", gaps, dbscan._dbscan)
 
 
     def test_cluster_gaps_complexCluster(self):
@@ -126,7 +126,7 @@ class ClusterUtilityTestCase(unittest.TestCase):
         actual_cluster_count = dbscan._cluster_gaps(gaps)
         
         self.assertEquals(18, actual_cluster_count)
-        plot_clusters("ENSMUST00000012259", gaps, dbscan._dbscan)
+        #plot_clusters("ENSMUST00000012259", gaps, dbscan._dbscan)
 
 
 def plot_clusters(title, gaps, dbscan):
