@@ -1,16 +1,21 @@
+#cgates: 7/31/2013
+#Would be nice gesture to figure out how to support numpy/scipy/sklearn 
+#   on 3.3 and 2.6.
 language: python
 python:
-    - "3.3"
     - "2.7"
-    - "2.6"
+    # "3.3"
+    #- "2.6"
 
 virtualenv:
     system_site_packages: true
 
 before_install:
-    - sudo apt-get install -qq python-numpy python-scipy
+    #- sudo apt-get install -qq python-numpy python-scipy
+    - "if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then sudo apt-get install -qq python-numpy python-scipy 2>&1 | tail -n 2; fi"
+    #- "if [[ $TRAVIS_PYTHON_VERSION == '3.2' ]]; then sudo apt-get install python3-numpy python3-numpy-dev 2>&1 | tail -n 2; fi"
 
-install: "pip install -r requirements.txt"
+install: "pip install -r requirements.txt --use-mirrors"
  
 script: nosetests
 
