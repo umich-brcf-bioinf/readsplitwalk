@@ -14,14 +14,14 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 class DbscanClusterUtility():
-        """
-        default min samples is set at number of dimensions + 1 
+    """
+    default min samples is set at number of dimensions + 1 
             (i.e. 3 = 2 + 1)
-        default epsilon is based on fact that we are not scaling the matrix
-            of (gap_start, gap_width) data and also the idea that true split 
-            reads should be piling up literally on top of one another.
-        Reasonable clustering behavior was confirmed through visual 
-            inspection of several representative transcripts."""
+    default epsilon is based on fact that we are not scaling the matrix
+        of (gap_start, gap_width) data and also the idea that true split 
+        reads should be piling up literally on top of one another.
+    Reasonable clustering behavior was confirmed through visual 
+        inspection of several representative transcripts."""
     
     class ShuntLogger():
         def log(self):
@@ -88,13 +88,21 @@ class DbscanClusterUtility():
         # pylint: disable=line-too-long
         for (chromosome,gaps) in DbscanClusterUtility._chromosome_partition(sorted_gaps):
             chromosome_count += 1
-            # pylint: disable=line-too-long
+            if len(gaps) > 100000:
+                self._logger.log(
+                    "WARNING skipping clustering for {0} gaps in "
+                    "chromosome {1} ({2}/{3})". \
+                    format(len(gaps), chromosome, chromosome_count, 
+                        total_chromosome_count))
+                continue
             self._logger.log(
                 "clustering {0} gaps in chromosome {1} ({2}/{3})". \
-                format(len(gaps), chromosome, chromosome_count, total_chromosome_count))
+                format(len(gaps), chromosome, chromosome_count, 
+                    total_chromosome_count))
             start_time = time.clock()
             cluster_count = self._cluster_gaps(gaps)
-            # pylint: disable=line-too-long
             self._logger.log(
-                "found {0} clusters for {1} gaps in chromosome {2} in {3:.0f} seconds". \
-                format(cluster_count, len(gaps), chromosome, time.clock()-start_time))
+                "found {0} clusters for {1} gaps in "
+                "chromosome {2} in {3:.0f} seconds". \
+                format(cluster_count, len(gaps), chromosome, 
+                    time.clock()-start_time))

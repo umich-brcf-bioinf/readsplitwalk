@@ -5,6 +5,7 @@ SCRIPT_NAME="`basename $0 .sh`"
 ORIGINAL_READ_LEN=$1
 PREDECSSOR_SUFFIX=.06-postprocess.sam
 mkdir -p logs
+chmod g+rw logs
 LOG_FILE=logs/${SCRIPT_NAME}.log
 
 function cluster {

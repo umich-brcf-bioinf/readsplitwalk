@@ -129,7 +129,7 @@ class GapUtility():
             try:
                 self._read_group_sample_dict[read_group['ID']] = read_group['SM']
             except:
-                print read_group
+                print (read_group)
                 raise InvalidReadGroupError(sam_line)
                 
     def sample_from_alignment(self, sam_line):

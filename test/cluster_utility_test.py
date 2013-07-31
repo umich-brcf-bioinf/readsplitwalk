@@ -20,7 +20,7 @@ class ClusterUtilityTestCase(unittest.TestCase):
         actual_cluster_count = dbscan._cluster_gaps(gaps)
         
         self.assertEquals(1, actual_cluster_count)
-        #plot_clusters(gaps, dbscan._dbscan)
+        plot_clusters("ENSMUST00000000305", gaps, dbscan._dbscan)
 
     def test_cluster_gaps_singletonCluster(self):
         length = 5
@@ -58,7 +58,7 @@ class ClusterUtilityTestCase(unittest.TestCase):
         actual_cluster_count = dbscan._cluster_gaps(gaps)
         
         self.assertEquals(5, actual_cluster_count)
-        #plot_clusters(gaps, dbscan._dbscan)
+        plot_clusters("ENSMUST00000063084", gaps, dbscan._dbscan)
 
 
     def test_cluster_gaps_complexCluster(self):
@@ -126,10 +126,10 @@ class ClusterUtilityTestCase(unittest.TestCase):
         actual_cluster_count = dbscan._cluster_gaps(gaps)
         
         self.assertEquals(18, actual_cluster_count)
-        #plot_clusters(gaps, dbscan._dbscan)
+        plot_clusters("ENSMUST00000012259", gaps, dbscan._dbscan)
 
 
-def plot_clusters(gaps, dbscan):
+def plot_clusters(title, gaps, dbscan):
     """Renders the clusters to GUI. 
     Note this will not work in a headless environ but could be adapted 
     to use matplotlib (instead of pylab) to enable creation of graphic 
@@ -167,7 +167,7 @@ def plot_clusters(gaps, dbscan):
                     markeredgecolor=col, markersize=markersize)
 
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-    pl.title('Estimated number of clusters: %d' % n_clusters)
+    pl.title("{0} ({1} clusters)".format(title,n_clusters))
     pl.xlabel('gap_start (base position)')
     pl.ylabel('gap_length (base count)')
     pl.show()
