@@ -13,6 +13,11 @@ class GapTestCase(unittest.TestCase):
     def test_original_read_name(self):
         self.assertEqual("split-read-name", Gap("sampleName", "split-read-name-L-13", "chromosome", 0, 4, 16, 64)._original_read_name())
 
+    def test_additional_sam_tags(self):
+        gap = Gap("sampleName", "split-read-name-L-13", "chromosome", 0, 4, 16, 64)
+        gap.cluster = 42
+        self.assertEqual("XC:i:42|XR:Z:split-read-name", gap.additional_sam_tags("|"))
+
     def test_header(self):
         self.assertEqual("#chromosome|cluster|sample_name|gap_start|gap_end|gap_width|read_start|read_end|read_width|split_read_name|original_read_name", Gap.header("|"))
         
@@ -182,8 +187,8 @@ class GapUtilityTestCase(unittest.TestCase):
         actual_lines = writer.lines()        
         self.assertEqual(["@CO\thoopy", "@CO\tfrood"], actual_lines[0:2])
         self.assertEqual(["@header1", "@header2"], actual_lines[2:4])
-        self.assertEqual([read1_leftmost + "|XC:i:5", read1_rightmost + "|XC:i:5"], actual_lines[4:6])
-        self.assertEqual([read2_leftmost + "|XC:i:10", read2_rightmost + "|XC:i:10"], actual_lines[6:8])
+        self.assertEqual([read1_leftmost + "|XC:i:5|XR:Z:read1", read1_rightmost + "|XC:i:5|XR:Z:read1"], actual_lines[4:6])
+        self.assertEqual([read2_leftmost + "|XC:i:10|XR:Z:read2", read2_rightmost + "|XC:i:10|XR:Z:read2"], actual_lines[6:8])
 
 
 def init_gap(chromosome, gap_start, split_read_name):

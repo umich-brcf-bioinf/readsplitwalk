@@ -8,6 +8,7 @@ cluster_gaps.py
     a) use DBSCAN for clustering, 
     b) read and passthrough sample ids from sam 
     c) emit a sam file with cluster annotations
+8/1/2013 - cgates: adjusted to emit original read as sam tag
 """
 from contextlib import nested
 import datetime
@@ -111,8 +112,8 @@ class Gap():
                 str(self._read_end), str(self._read_width()), 
                 self._split_read_name, self._original_read_name()])
 
-    def cluster_tag(self):
-        return "XC:i:{0}".format(self.cluster)
+    def additional_sam_tags(self, delimiter):
+        return "XC:i:{0}{1}XR:Z:{2}".format(self.cluster, delimiter, self._original_read_name())        
 
 class GapUtility():
     
@@ -200,6 +201,14 @@ class GapUtility():
     def write_sam_file(
             self, input_sam_file, gaps, output_sam_file, 
             additional_header_lines):
+            
+        def _tagged_sam_line(line, gap_dict):
+            sam_gap = self.build_gap(line)
+            reference_gap = gap_dict[sam_gap.key()]
+            additional_tags = reference_gap.additional_sam_tags(self._delimiter)
+            return "{0}{1}{2}\n".format(
+                    line.rstrip(), self._delimiter, additional_tags)
+        
         self._logger.log("building gap dictionary")
         gap_dict = {}
         for gap in gaps:
@@ -215,9 +224,7 @@ class GapUtility():
             if line.startswith("@"):
                 output_sam_file.write(line)
             else:
-                sam_gap = self.build_gap(line)
-                cluster_tag =  gap_dict[sam_gap.key()].cluster_tag()
-                output_sam_file.write("{0}{1}{2}\n".format(line.rstrip(), self._delimiter, cluster_tag))
+                output_sam_file.write(_tagged_sam_line(line, gap_dict))
         self._logger.log("processed {0} lines".format(count))
 
 def main(input_sam_file_name, original_read_len, gap_file_name, output_sam_file_name, delimiter):
@@ -234,7 +241,7 @@ def main(input_sam_file_name, original_read_len, gap_file_name, output_sam_file_
     gaps = GapUtility.sort_gaps(gaps)
 
     logger.log("clustering gaps")
-    cluster_utility = DbscanClusterUtility(logger=logger)
+    cluster_utility = DbscanClusterUtility(logger=logger, deduplication_threshold=1000)
     cluster_utility.assign_clusters(gaps)
 
     logger.log("writing {0} gaps to file".format(len(gaps)))

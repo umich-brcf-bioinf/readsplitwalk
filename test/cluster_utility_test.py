@@ -14,21 +14,19 @@ class ClusterUtilityTestCase(unittest.TestCase):
             195,195,195,
             196,196,196
             ]]
+        cluster_utility = DbscanClusterUtility()
 
-        dbscan = DbscanClusterUtility(
-            epsilon=3, min_samples=3, logger=MockLogger())
-        actual_cluster_count = dbscan._cluster_gaps(gaps)
+        actual_cluster_count = cluster_utility._cluster_gaps(gaps)
         
         self.assertEquals(1, actual_cluster_count)
-        #plot_clusters("ENSMUST00000000305", gaps, dbscan._dbscan)
+        #plot_clusters("ENSMUST00000000305", gaps, cluster_utility._dbscan)
 
     def test_cluster_gaps_singletonCluster(self):
         length = 5
         gaps = [MockGap(start, length) for start in [42,42,42]]
-
-        dbscan = DbscanClusterUtility(
-            epsilon=3, min_samples=3, logger=MockLogger())
-        actual_cluster_count = dbscan._cluster_gaps(gaps)
+        cluster_utility = DbscanClusterUtility()
+        
+        actual_cluster_count = cluster_utility._cluster_gaps(gaps)
         
         self.assertEquals(1, actual_cluster_count)
 
@@ -36,13 +34,13 @@ class ClusterUtilityTestCase(unittest.TestCase):
         length = 5
         gaps = [MockGap(start, length) for start in [42,42,46]]
 
-        dbscan = DbscanClusterUtility(
-            epsilon=3, min_samples=3, logger=MockLogger())
-        actual_cluster_count = dbscan._cluster_gaps(gaps)
+        cluster_utility = DbscanClusterUtility()
+
+        actual_cluster_count = cluster_utility._cluster_gaps(gaps)
         
         self.assertEquals(0, actual_cluster_count)
 
-    def test_cluster_standardCluster(self):
+    def test_cluster_standardClusterA(self):
         #the distinct start,lengths from 
         #ENSMUST00000063084 for Samples 21786, 21797
         gaps = [MockGap(start, length) for (start,length) in [
@@ -53,12 +51,30 @@ class ClusterUtilityTestCase(unittest.TestCase):
             (918,67),(919,67),(920,67),(921,67),(922,67),
             (1324,2),(1325,2),(1326,2),(1327,2),(1328,2),
             ]]
-        dbscan = DbscanClusterUtility(
-            epsilon=3, min_samples=3, logger=MockLogger())
-        actual_cluster_count = dbscan._cluster_gaps(gaps)
+        cluster_utility = DbscanClusterUtility()
+        
+        actual_cluster_count = cluster_utility._cluster_gaps(gaps)
         
         self.assertEquals(5, actual_cluster_count)
-        #plot_clusters("ENSMUST00000063084", gaps, dbscan._dbscan)
+        #plot_clusters("ENSMUST00000063084-21786,21797", gaps, cluster_utility._dbscan)
+
+    def test_cluster_standardClusterB(self):
+        #the distinct start,lengths from 
+        #ENSMUST00000063084 for Sample 21791
+        gaps = [MockGap(start, length) for (start,length) in [
+            (811,26),(812,26), (813,26), (814,26), (815,26), (816,26),
+            (817,26), (818,26), (819,26), (820,26), (821,26), (918,67),
+            (919,67), (920,67), (921,67), (922,67), (1542,2), (1543,2),
+            (1544,2), (1545,2), (1546,2), (1547,2), (1754,2), (1755,2),
+            (1756,2), (1757,2), (1758,2), (1759,2),
+            ]]
+        cluster_utility = DbscanClusterUtility()
+        
+        actual_cluster_count = cluster_utility._cluster_gaps(gaps)
+        
+        self.assertEquals(4, actual_cluster_count)
+        #plot_clusters("ENSMUST00000063084-21791", gaps, cluster_utility._dbscan)
+
 
 
     def test_cluster_gaps_complexCluster(self):
@@ -121,12 +137,12 @@ class ClusterUtilityTestCase(unittest.TestCase):
             (363,2), (364,2), (365,2), (366,2), (367,2), #cluster 17
             ]]
 
-        dbscan = DbscanClusterUtility(
-            epsilon=3, min_samples=3, logger=MockLogger())
-        actual_cluster_count = dbscan._cluster_gaps(gaps)
+        cluster_utility = DbscanClusterUtility()
+        
+        actual_cluster_count = cluster_utility._cluster_gaps(gaps)
         
         self.assertEquals(18, actual_cluster_count)
-        #plot_clusters("ENSMUST00000012259", gaps, dbscan._dbscan)
+        #plot_clusters("ENSMUST00000012259", gaps, cluster_utility._dbscan)
 
 
 def plot_clusters(title, gaps, dbscan):

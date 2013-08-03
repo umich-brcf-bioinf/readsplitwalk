@@ -11,17 +11,6 @@ function merge_sam {
 	grep '^[^@]' ${READ_2} >> ${MERGE_FILE}
 }
 
-function convert_sam_to_bam {
-	BASENAME=`basename $1 .sam`
-	BAMNAME=${BASENAME}.bam
-	SORTEDNAME=${BASENAME}.sorted
-	INDEXEDNAME=${SORTEDNAME}.bam
-	echo Converting $1 to ${BAMNAME}...
-	samtools view -bS $1 > ${BAMNAME}
-	samtools sort ${BAMNAME} ${SORTEDNAME}
-	samtools index ${INDEXEDNAME}
-}
-
 function add_read_group {
 	BASENAME=`basename $1 .sam`
 	RGBASENAME=`basename $1 _ALL.06-postprocess.sam`
@@ -62,8 +51,7 @@ echo 'Merging all headers...'
 grep --no-filename '^@' Sample_*_ALL.06-postprocess.rg.sam | grep -v '^@PG' | sort -k1,1r | uniq > all_samples_merged.06-postprocess.sam
 echo 'Merging all alignments...'
 grep --no-filename -v '^@' Sample_*_ALL.06-postprocess.rg.sam >> all_samples_merged.06-postprocess.sam
-
-#echo Converting to bam files...
-#convert_sam_to_bam all_samples_merged.06-postprocess.sam
+echo 'Changing spaces to tabs'
+sed -i 's/ \+/	/g' all_samples_merged.06-postprocess.sam
 
 echo Done.
